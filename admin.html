@@ -26,7 +26,7 @@ button.s{font:inherit;padding:.25rem .55rem;border:1px solid #b8c4be;background:
 <label for="pw">Password</label><input id="pw" type="password" required><p><button class="b" style="width:100%">Sign in</button></p></form></div>
 <div id="app" class="hidden">
 <header><b>☕ Stock Admin</b><nav id="nav">
-<button data-v="dash" class="on">Dashboard</button><button data-v="inv">Inventory</button><button data-v="sup">Suppliers</button><button data-v="shop">Shopping list</button><button data-v="hist">History</button><button data-v="appr">Approvals <span id="badge"></span></button><button data-v="rep">Reports</button><button data-v="set">Settings</button><button id="out">Sign out</button></nav></header>
+<button data-v="dash" class="on">Dashboard</button><button data-v="inv">Inventory</button><button data-v="sup">Suppliers</button><button data-v="shop">Shopping list</button><button data-v="hist">History</button><button data-v="appr">Approvals <span id="badge"></span></button><button data-v="rep">Reports</button><button data-v="set">Settings</button><button id="ref">⟳ Refresh</button><button id="out">Sign out</button></nav></header>
 <main id="m"></main></div>
 <dialog id="dlg"></dialog><div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -48,7 +48,9 @@ const tbl=(h,rows)=>rows.length?`<table><thead><tr>${h.map(x=>`<th>${x}</th>`).j
 sb.auth.getSession().then(({data})=>{if(data.session)start()});
 $("#lf").onsubmit=async e=>{e.preventDefault();const{error}=await sb.auth.signInWithPassword({email:$("#em").value,password:$("#pw").value});error?toast(error.message,1):start()};
 $("#out").onclick=async()=>{await sb.auth.signOut();location.reload()};
-function start(){$("#login").classList.add("hidden");$("#app").classList.remove("hidden");load()}
+$("#ref").onclick=()=>{load();toast("Refreshed.")};
+function start(){$("#login").classList.add("hidden");$("#app").classList.remove("hidden");load();
+setInterval(()=>{if(!$("#dlg").open&&view!=="set"&&!document.activeElement.matches("input,select"))load()},30000)}
 $("#nav").onclick=e=>{const b=e.target.closest("button");if(!b||!b.dataset.v)return;view=b.dataset.v;document.querySelectorAll("#nav button").forEach(x=>x.classList.toggle("on",x===b));render()};
 async function load(){const q=t=>sb.from(t).select("*");
 const r=await Promise.all([q("items").order("name"),q("suppliers").order("name"),q("movements").order("created_at",{ascending:false}).limit(5000),
