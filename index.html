@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coffee Shop Stock</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☕</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#edf0ec;--card:#fff;--ink:#1b2a27;--mute:#5d6e69;--line:#d3dbd6;--green:#2f5d50;--green-d:#234639;--red:#c0392b;--red-bg:#fbeae8;--in:#2f7d4f;--out:#b4571e}
+*{box-sizing:border-box}
+body{margin:0;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+header{background:var(--green-d);color:#fff;padding:.75rem 1rem;display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;align-items:center;justify-content:space-between}
+header h1{font-size:1.1rem;margin:0}
+nav{display:flex;gap:.25rem;flex-wrap:wrap}
+nav button{background:transparent;color:#cfe0d8;border:0;padding:.5rem .9rem;border-radius:6px;font:inherit;cursor:pointer}
+nav button.on{background:#fff;color:var(--green-d);font-weight:700}
+nav button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #e0a526;outline-offset:2px}
+main{max-width:980px;margin:1rem auto;padding:0 1rem 3rem}
+h2{margin:.2rem 0 1rem;font-size:1.4rem}
+h3{margin:1.4rem 0 .5rem;font-size:1.05rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem}
+.grid{display:grid;gap:1rem}
+.g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+label{display:block;font-weight:500;margin:.8rem 0 .25rem}
+input,select,textarea{width:100%;font:inherit;padding:.65rem;border:1px solid #b8c4be;border-radius:6px;background:#fff;color:var(--ink)}
+button.btn{font:inherit;font-weight:700;background:var(--green);color:#fff;border:0;border-radius:6px;padding:.7rem 1.2rem;cursor:pointer}
+button.btn:hover{background:var(--green-d)}
+button.ghost{background:#fff;color:var(--ink);border:1px solid #b8c4be}
+button.ghost:hover{background:#f1f4f2}
+button.danger{background:var(--red)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.seg input{position:absolute;opacity:0}
+.seg span{display:block;text-align:center;padding:.8rem;border:2px solid #b8c4be;border-radius:8px;font-weight:700;cursor:pointer}
+.seg input:checked+span.in{background:var(--in);border-color:var(--in);color:#fff}
+.seg input:checked+span.out{background:var(--out);border-color:var(--out);color:#fff}
+.seg input:focus-visible+span{outline:3px solid #e0a526}
+.stat{font-size:2rem;font-weight:700}
+.alert{background:var(--red-bg);border:1px solid #e6b3ad;border-left:6px solid var(--red);border-radius:8px;padding:.8rem 1rem}
+.alert h3{margin:0 0 .4rem;color:var(--red)}
+.alert li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0}
+ul{list-style:none;margin:0;padding:0}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{text-align:left;padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:500}
+.in-t{color:var(--in);font-weight:700}.out-t{color:var(--out);font-weight:700}
+.low{color:var(--red);font-weight:700}
+.row-actions{display:flex;gap:.4rem}
+.row-actions button{padding:.3rem .7rem;font-size:.85rem}
+.bar{display:flex;gap:.6rem;flex-wrap:wrap;align-items:end;margin-bottom:1rem}
+.bar>*{flex:1 1 150px}
+.bar .btn{flex:0 0 auto}
+.mute{color:var(--mute)}
+.empty{padding:1.5rem;text-align:center;color:var(--mute)}
+#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.7rem 1.1rem;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:20}
+#toast.show{opacity:1}#toast.err{background:var(--red)}
+dialog{border:0;border-radius:10px;padding:1.2rem;width:min(440px,92vw)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+#lock{position:fixed;inset:0;background:var(--green-d);display:flex;align-items:center;justify-content:center;z-index:30;padding:1rem}
+#lock .box{background:#fff;border-radius:12px;padding:1.6rem;text-align:center;width:min(320px,100%)}
+#pin{text-align:center;font-size:1.8rem;letter-spacing:.6em;padding-left:.6em}
+#pinerr{color:var(--red);min-height:1.4em;margin:.5rem 0 0}
+.hidden{display:none!important}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- PIN SCREEN -->
+<div id="lock">
+  <form class="box" id="pinform" autocomplete="off">
+    <h2 style="margin-top:0">☕ Enter staff PIN</h2>
+    <input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" aria-label="4-digit PIN" required>
+    <p id="pinerr" role="alert"></p>
+    <button class="btn" style="width:100%">Unlock</button>
+  </form>
+</div>
+
+<header>
+  <h1>☕ Coffee Shop Stock</h1>
+  <nav id="nav">
+    <button data-v="form" class="on">Stock In/Out</button>
+    <button data-v="dash">Dashboard</button>
+    <button data-v="inv">Inventory</button>
+    <button data-v="hist">History</button>
+  </nav>
+</header>
+
+<main>
+  <!-- FORM -->
+  <section id="v-form">
+    <h2>Quick Stock In / Out</h2>
+    <form class="card" id="moveform" style="max-width:520px">
+      <label for="f-item">Item</label>
+      <select id="f-item" required></select>
+      <label>Action</label>
+      <div class="seg">
+        <label style="margin:0"><input type="radio" name="type" value="in" checked><span class="in">Stock In</span></label>
+        <label style="margin:0"><input type="radio" name="type" value="out"><span class="out">Stock Out</span></label>
+      </div>
+      <label for="f-qty">Quantity <span class="mute" id="f-unit"></span></label>
+      <input id="f-qty" type="number" min="0.01" step="any" inputmode="decimal" required>
+      <label for="f-reason">Reason</label>
+      <select id="f-reason" required>
+        <option>Delivery</option><option>Daily Usage</option><option>Spoilage</option><option>Waste</option>
+      </select>
+      <label for="f-staff">Your name</label>
+      <input id="f-staff" required maxlength="40">
+      <label for="f-notes">Notes (optional)</label>
+      <input id="f-notes" maxlength="200">
+      <p><button class="btn" id="f-submit" style="width:100%">Save movement</button></p>
+    </form>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="v-dash" class="hidden">
+    <h2>Dashboard</h2>
+    <div class="grid g2">
+      <div class="card"><div class="mute">Total items</div><div class="stat" id="d-total">0</div></div>
+      <div class="card"><div class="mute">Running low</div><div class="stat low" id="d-low">0</div></div>
+    </div>
+    <h3>Low-stock alerts</h3>
+    <div id="d-alerts"></div>
+    <h3>Recent movements</h3>
+    <div class="card tablewrap" id="d-recent"></div>
+  </section>
+
+  <!-- INVENTORY -->
+  <section id="v-inv" class="hidden">
+    <h2>Inventory</h2>
+    <div class="bar">
+      <div><label for="i-search" style="margin-top:0">Search</label><input id="i-search" type="search" placeholder="Search items"></div>
+      <button class="btn" id="i-add">Add item</button>
+    </div>
+    <div id="i-list"></div>
+  </section>
+
+  <!-- HISTORY -->
+  <section id="v-hist" class="hidden">
+    <h2>Stock History</h2>
+    <div class="bar">
+      <div><label for="h-item" style="margin-top:0">Item</label><select id="h-item"></select></div>
+      <div><label for="h-type" style="margin-top:0">Type</label><select id="h-type"><option value="">All</option><option value="in">Stock In</option><option value="out">Stock Out</option></select></div>
+      <div><label for="h-reason" style="margin-top:0">Reason</label><select id="h-reason"><option value="">All</option><option>Delivery</option><option>Daily Usage</option><option>Spoilage</option><option>Waste</option></select></div>
+      <div><label for="h-staff" style="margin-top:0">Staff</label><input id="h-staff" placeholder="Name"></div>
+      <div><label for="h-from" style="margin-top:0">From</label><input id="h-from" type="date"></div>
+      <div><label for="h-to" style="margin-top:0">To</label><input id="h-to" type="date"></div>
+    </div>
+    <div class="card tablewrap" id="h-list"></div>
+  </section>
+</main>
+
+<!-- ITEM DIALOG -->
+<dialog id="dlg">
+  <form id="itemform">
+    <h2 id="dlg-title" style="margin-top:0">Add item</h2>
+    <label for="x-name">Name</label><input id="x-name" required maxlength="60">
+    <label for="x-cat">Category</label>
+    <select id="x-cat"><option>Beans</option><option>Milk</option><option>Syrups</option><option>Cups &amp; Packaging</option><option>Pastries</option></select>
+    <label for="x-unit">Unit (kg, L, pcs…)</label><input id="x-unit" required maxlength="12" value="pcs">
+    <label for="x-qty">Current stock</label><input id="x-qty" type="number" min="0" step="any" required value="0">
+    <label for="x-reorder">Reorder level (alert at or below)</label><input id="x-reorder" type="number" min="0" step="any" required value="0">
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1.2rem">
+      <button type="button" class="btn ghost" id="x-cancel">Cancel</button>
+      <button class="btn">Save item</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+/* ========== CONFIG — EDIT THESE THREE LINES ========== */
+const SUPABASE_URL = "https://YOUR-PROJECT-ID.supabase.co";
+const SUPABASE_KEY = "YOUR-ANON-PUBLIC-KEY";
+const STAFF_PIN    = "1234";
+/* ===================================================== */
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const CATS = ["Beans","Milk","Syrups","Cups & Packaging","Pastries"];
+const $ = s => document.querySelector(s);
+let items = [], moves = [], editingId = null;
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => Number(n).toLocaleString(undefined, {maximumFractionDigits: 2});
+const when = d => new Date(d).toLocaleString([], {dateStyle:"medium", timeStyle:"short"});
+const isLow = i => Number(i.quantity) <= Number(i.reorder_level);
+
+function toast(msg, err){
+  const t = $("#toast"); t.textContent = msg; t.className = "show" + (err ? " err" : "");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = "", 3500);
+}
+
+/* ---------- PIN ---------- */
+function unlock(){ $("#lock").classList.add("hidden"); init(); }
+if (sessionStorage.getItem("unlocked") === "1") unlock(); else $("#pin").focus();
+$("#pinform").addEventListener("submit", e => {
+  e.preventDefault();
+  if ($("#pin").value === STAFF_PIN){ sessionStorage.setItem("unlocked","1"); unlock(); }
+  else { $("#pinerr").textContent = "Wrong PIN. Try again."; $("#pin").value = ""; }
+});
+
+/* ---------- Navigation ---------- */
+$("#nav").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll("#nav button").forEach(x => x.classList.toggle("on", x === b));
+  ["form","dash","inv","hist"].forEach(v => $("#v-"+v).classList.toggle("hidden", v !== b.dataset.v));
+});
+
+/* ---------- Data ---------- */
+async function load(){
+  const [a, b] = await Promise.all([
+    sb.from("items").select("*").order("name"),
+    sb.from("movements").select("*").order("created_at", {ascending:false}).limit(1000)
+  ]);
+  if (a.error || b.error){ toast("Could not load data: " + (a.error || b.error).message, true); return; }
+  items = a.data; moves = b.data;
+  renderAll();
+}
+function init(){
+  $("#f-staff").value = localStorage.getItem("staff") || "";
+  load();
+}
+
+function renderAll(){ renderForm(); renderDash(); renderInv(); renderHistFilters(); renderHist(); }
+
+/* ---------- Stock form ---------- */
+function renderForm(){
+  const cur = $("#f-item").value;
+  $("#f-item").innerHTML = '<option value="">Select an item…</option>' + CATS.map(c => {
+    const list = items.filter(i => i.category === c);
+    return list.length ? `<optgroup label="${esc(c)}">${list.map(i => `<option value="${i.id}">${esc(i.name)} (${fmt(i.quantity)} ${esc(i.unit)})</option>`).join("")}</optgroup>` : "";
+  }).join("");
+  $("#f-item").value = cur;
+  updateUnit();
+}
+function updateUnit(){ const i = items.find(x => x.id === $("#f-item").value); $("#f-unit").textContent = i ? `(${i.unit})` : ""; }
+$("#f-item").addEventListener("change", updateUnit);
+document.querySelectorAll('input[name="type"]').forEach(r => r.addEventListener("change", () => {
+  $("#f-reason").value = r.value === "in" ? "Delivery" : "Daily Usage";
+}));
+
+$("#moveform").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("#f-submit"); btn.disabled = true;
+  const staff = $("#f-staff").value.trim();
+  const { error } = await sb.rpc("record_movement", {
+    p_item_id: $("#f-item").value,
+    p_type: document.querySelector('input[name="type"]:checked').value,
+    p_qty: Number($("#f-qty").value),
+    p_reason: $("#f-reason").value,
+    p_staff: staff,
+    p_notes: $("#f-notes").value.trim()
+  });
+  btn.disabled = false;
+  if (error) return toast(error.message, true);
+  localStorage.setItem("staff", staff);
+  $("#f-qty").value = ""; $("#f-notes").value = "";
+  toast("Saved. Stock updated.");
+  load();
+});
+
+/* ---------- Dashboard ---------- */
+function movesTable(list){
+  if (!list.length) return '<div class="empty">No movements yet. Record one from the Stock In/Out tab.</div>';
+  return `<table><thead><tr><th>When</th><th>Item</th><th>Change</th><th>Reason</th><th>Staff</th><th>Notes</th></tr></thead><tbody>${
+    list.map(m => `<tr><td>${when(m.created_at)}</td><td>${esc(m.item_name)}</td>
+    <td class="${m.type}-t">${m.type === "in" ? "+" : "−"}${fmt(m.quantity)}</td>
+    <td>${esc(m.reason)}</td><td>${esc(m.staff_name)}</td><td>${esc(m.notes)}</td></tr>`).join("")}</tbody></table>`;
+}
+function renderDash(){
+  const low = items.filter(isLow);
+  $("#d-total").textContent = items.length;
+  $("#d-low").textContent = low.length;
+  $("#d-alerts").innerHTML = low.length
+    ? `<div class="alert"><h3>Reorder these now</h3><ul>${low.map(i => `<li><span>${esc(i.name)}</span><span><b>${fmt(i.quantity)}</b> ${esc(i.unit)} left (reorder at ${fmt(i.reorder_level)})</span></li>`).join("")}</ul></div>`
+    : '<div class="card empty">Nothing is running low.</div>';
+  $("#d-recent").innerHTML = movesTable(moves.slice(0, 8));
+}
+
+/* ---------- Inventory ---------- */
+function renderInv(){
+  const q = $("#i-search").value.trim().toLowerCase();
+  const html = CATS.map(c => {
+    const list = items.filter(i => i.category === c && i.name.toLowerCase().includes(q));
+    if (!list.length) return "";
+    return `<h3>${esc(c)}</h3><div class="card tablewrap"><table><thead><tr><th>Item</th><th>In stock</th><th>Reorder at</th><th></th></tr></thead><tbody>${
+      list.map(i => `<tr><td>${esc(i.name)}</td>
+      <td class="${isLow(i) ? "low" : ""}">${fmt(i.quantity)} ${esc(i.unit)}${isLow(i) ? " (low)" : ""}</td>
+      <td>${fmt(i.reorder_level)} ${esc(i.unit)}</td>
+      <td><div class="row-actions"><button class="btn ghost" data-edit="${i.id}">Edit</button><button class="btn danger" data-del="${i.id}">Delete</button></div></td></tr>`).join("")}</tbody></table></div>`;
+  }).join("");
+  $("#i-list").innerHTML = html || '<div class="card empty">No items found. Add your first item.</div>';
+}
+$("#i-search").addEventListener("input", renderInv);
+$("#i-add").addEventListener("click", () => openDlg(null));
+$("#x-cancel").addEventListener("click", () => $("#dlg").close());
+
+function openDlg(id){
+  editingId = id;
+  const i = items.find(x => x.id === id) || {name:"", category:CATS[0], unit:"pcs", quantity:0, reorder_level:0};
+  $("#dlg-title").textContent = id ? "Edit item" : "Add item";
+  $("#x-name").value = i.name; $("#x-cat").value = i.category; $("#x-unit").value = i.unit;
+  $("#x-qty").value = i.quantity; $("#x-reorder").value = i.reorder_level;
+  $("#dlg").showModal();
+}
+$("#i-list").addEventListener("click", async e => {
+  const ed = e.target.closest("[data-edit]"), del = e.target.closest("[data-del]");
+  if (ed) openDlg(ed.dataset.edit);
+  if (del){
+    const i = items.find(x => x.id === del.dataset.del);
+    if (!confirm(`Delete "${i.name}"? Its history stays in the log.`)) return;
+    const { error } = await sb.from("items").delete().eq("id", i.id);
+    if (error) return toast(error.message, true);
+    toast("Item deleted."); load();
+  }
+});
+$("#itemform").addEventListener("submit", async e => {
+  e.preventDefault();
+  const row = {
+    name: $("#x-name").value.trim(), category: $("#x-cat").value, unit: $("#x-unit").value.trim(),
+    quantity: Number($("#x-qty").value), reorder_level: Number($("#x-reorder").value)
+  };
+  const { error } = editingId
+    ? await sb.from("items").update(row).eq("id", editingId)
+    : await sb.from("items").insert(row);
+  if (error) return toast(error.message, true);
+  $("#dlg").close(); toast("Item saved."); load();
+});
+
+/* ---------- History ---------- */
+function renderHistFilters(){
+  const cur = $("#h-item").value;
+  const names = [...new Set(moves.map(m => m.item_name))].sort();
+  $("#h-item").innerHTML = '<option value="">All items</option>' + names.map(n => `<option>${esc(n)}</option>`).join("");
+  $("#h-item").value = cur;
+}
+function renderHist(){
+  const it = $("#h-item").value, ty = $("#h-type").value, re = $("#h-reason").value,
+        st = $("#h-staff").value.trim().toLowerCase(), fr = $("#h-from").value, to = $("#h-to").value;
+  const list = moves.filter(m =>
+    (!it || m.item_name === it) && (!ty || m.type === ty) && (!re || m.reason === re) &&
+    (!st || m.staff_name.toLowerCase().includes(st)) &&
+    (!fr || new Date(m.created_at) >= new Date(fr + "T00:00:00")) &&
+    (!to || new Date(m.created_at) <= new Date(to + "T23:59:59")));
+  $("#h-list").innerHTML = movesTable(list);
+}
+["h-item","h-type","h-reason","h-staff","h-from","h-to"].forEach(id => {
+  $("#"+id).addEventListener("input", renderHist);
+});
+</script>
+</body>
+</html>
