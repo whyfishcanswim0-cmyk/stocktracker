@@ -52,7 +52,7 @@ button.s{font:inherit;padding:.3rem .6rem;border:1px solid #b8c4be;background:#f
 </main><div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
-const SUPABASE_URL="https://YOUR-PROJECT-ID.supabase.co", SUPABASE_KEY="YOUR-ANON-PUBLIC-KEY";
+const SUPABASE_URL="https://nwlgqynzcohwamlfcekk.supabase.co", SUPABASE_KEY="sb_publishable_IesjicwYQCtqBhIBp3YXow_Adg58C-_";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY),$=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let PIN=sessionStorage.getItem("pin")||"",items=[];
