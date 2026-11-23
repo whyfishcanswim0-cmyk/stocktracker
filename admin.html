@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock – Admin</title>
+<style>
+:root{--g:#1b2a27;--a:#2f5d50;--line:#d3dbd6;--red:#c0392b}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:#edf0ec;color:#1b2a27}
+header{background:var(--g);color:#fff;padding:.6rem 1rem;display:flex;flex-wrap:wrap;gap:.4rem 1rem;align-items:center;justify-content:space-between}
+nav{display:flex;flex-wrap:wrap;gap:.2rem}nav button{background:none;border:0;color:#b9cbc4;padding:.45rem .7rem;font:inherit;border-radius:6px;cursor:pointer}
+nav button.on{background:#fff;color:var(--g);font-weight:700}
+main{max-width:1050px;margin:1rem auto;padding:0 1rem 3rem}h2{margin:.2rem 0 .8rem}h3{margin:1.2rem 0 .4rem}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:1rem;overflow-x:auto}
+.grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}.stat{font-size:1.8rem;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}th{color:#5d6e69;font-weight:500}
+input,select,textarea{font:inherit;padding:.55rem;border:1px solid #b8c4be;border-radius:6px;width:100%}label{display:block;font-weight:600;margin:.7rem 0 .2rem}
+button.b{font:inherit;font-weight:700;background:var(--a);color:#fff;border:0;border-radius:6px;padding:.6rem 1rem;cursor:pointer}
+button.s{font:inherit;padding:.25rem .55rem;border:1px solid #b8c4be;background:#fff;border-radius:6px;cursor:pointer}button.r{background:var(--red);color:#fff;border-color:var(--red)}
+.bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:end;margin-bottom:.8rem}.bar>*{flex:1 1 130px;width:auto}.bar .b{flex:0 0 auto}
+.alert{background:#fbeae8;border-left:6px solid var(--red);border-radius:8px;padding:.7rem 1rem}.low{color:var(--red);font-weight:700}.v{text-decoration:line-through;color:#888}
+.hidden{display:none!important}dialog{border:0;border-radius:10px;padding:1.2rem;width:min(440px,92vw)}
+#login{max-width:340px;margin:12vh auto;padding:0 1rem}#toast{position:fixed;left:50%;bottom:1rem;transform:translateX(-50%);background:#1b2a27;color:#fff;padding:.7rem 1rem;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:1}#toast.err{background:var(--red)}:focus-visible{outline:3px solid #e0a526;outline-offset:2px}
+@media print{header,.bar,.noprint{display:none!important}body{background:#fff}.card{border:0}}
+</style></head><body>
+<div id="login"><form class="card" id="lf"><h2>Admin sign in</h2><label for="em">Email</label><input id="em" type="email" required>
+<label for="pw">Password</label><input id="pw" type="password" required><p><button class="b" style="width:100%">Sign in</button></p></form></div>
+<div id="app" class="hidden">
+<header><b>☕ Stock Admin</b><nav id="nav">
+<button data-v="dash" class="on">Dashboard</button><button data-v="inv">Inventory</button><button data-v="sup">Suppliers</button><button data-v="shop">Shopping list</button><button data-v="hist">History</button><button data-v="appr">Approvals <span id="badge"></span></button><button data-v="rep">Reports</button><button data-v="set">Settings</button><button id="out">Sign out</button></nav></header>
+<main id="m"></main></div>
+<dialog id="dlg"></dialog><div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL="https://YOUR-PROJECT-ID.supabase.co", SUPABASE_KEY="YOUR-ANON-PUBLIC-KEY";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY),$=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const peso=n=>"₱"+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt=n=>Number(n).toLocaleString(undefined,{maximumFractionDigits:2}),when=d=>new Date(d).toLocaleString([],{dateStyle:"medium",timeStyle:"short"});
+let D={items:[],sup:[],mv:[],cor:[],cnt:[]},view="dash",F={};
+function toast(m,e){const t=$("#toast");t.textContent=m;t.className="show"+(e?" err":"");clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",3500)}
+const low=i=>+i.quantity<=+i.reorder_level;
+function csv(name,rows){if(!rows.length)return toast("Nothing to export",1);const k=Object.keys(rows[0]);
+const t=[k.join(","),...rows.map(r=>k.map(c=>'"'+String(r[c]??"").replace(/"/g,'""')+'"').join(","))].join("\n");
+const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+t],{type:"text/csv"}));a.download=name+".csv";a.click()}
+const tbl=(h,rows)=>rows.length?`<table><thead><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`:"<p>Nothing here yet.</p>";
+
+/* auth */
+sb.auth.getSession().then(({data})=>{if(data.session)start()});
+$("#lf").onsubmit=async e=>{e.preventDefault();const{error}=await sb.auth.signInWithPassword({email:$("#em").value,password:$("#pw").value});error?toast(error.message,1):start()};
+$("#out").onclick=async()=>{await sb.auth.signOut();location.reload()};
+function start(){$("#login").classList.add("hidden");$("#app").classList.remove("hidden");load()}
+$("#nav").onclick=e=>{const b=e.target.closest("button");if(!b||!b.dataset.v)return;view=b.dataset.v;document.querySelectorAll("#nav button").forEach(x=>x.classList.toggle("on",x===b));render()};
+async function load(){const q=t=>sb.from(t).select("*");
+const r=await Promise.all([q("items").order("name"),q("suppliers").order("name"),q("movements").order("created_at",{ascending:false}).limit(5000),
+sb.from("corrections").select("*,movements(item_name,quantity,type,reason)").eq("status","pending"),q("stocktakes").eq("status","pending")]);
+const err=r.find(x=>x.error);if(err)return toast(err.error.message,1);
+[D.items,D.sup,D.mv,D.cor,D.cnt]=r.map(x=>x.data);const n=D.cor.length+D.cnt.length;$("#badge").textContent=n?`(${n})`:"";render()}
+const sname=id=>(D.sup.find(s=>s.id===id)||{}).name||"No supplier";
+function render(){$("#m").innerHTML=({dash,inv,sup,shop,hist,appr,rep,set})[view]()}
+
+/* DASHBOARD */
+function dash(){const L=D.items.filter(low),val=D.items.reduce((s,i)=>s+i.quantity*i.cost,0),today=new Date().toISOString().slice(0,10);
+const exp=D.mv.filter(m=>m.type==="in"&&m.expiry&&!m.voided&&m.expiry>=today).sort((a,b)=>a.expiry.localeCompare(b.expiry)).slice(0,10);
+return `<h2>Dashboard</h2><div class="grid"><div class="card">Items<div class="stat">${D.items.length}</div></div><div class="card">Running low<div class="stat low">${L.length}</div></div><div class="card">Stock value<div class="stat">${peso(val)}</div></div><div class="card">Waiting for approval<div class="stat">${D.cor.length+D.cnt.length}</div></div></div>
+<h3>Low stock</h3>${L.length?`<div class="alert">${L.map(i=>`<div>${esc(i.name)} (${i.area}): <b>${fmt(i.quantity)}</b> ${esc(i.unit)} left, reorder at ${fmt(i.reorder_level)}</div>`).join("")}</div>`:"<div class='card'>Nothing is running low.</div>"}
+<h3>Use these first (expiring soonest)</h3><div class="card">${tbl(["Item","Expires","Received","By"],exp.map(m=>`<tr><td>${esc(m.item_name)}</td><td>${m.expiry}</td><td>${fmt(m.quantity)}</td><td>${esc(m.staff_name)}</td></tr>`))}</div>
+<h3>Recent movements</h3><div class="card">${mvTable(D.mv.slice(0,8),false)}</div>`}
+
+/* INVENTORY */
+function inv(){const q=(F.iq||"").toLowerCase(),cats=[...new Set(D.items.map(i=>i.area+" – "+i.category))].sort();
+return `<h2>Inventory</h2><div class="bar"><div><label>Search</label><input id="iq" value="${esc(F.iq||"")}" oninput="F.iq=this.value;render();this.focus()"></div><button class="b" onclick="itemDlg()">Add item</button><button class="s" onclick="csv('inventory',D.items.map(i=>({name:i.name,area:i.area,category:i.category,unit:i.unit,quantity:i.quantity,reorder_level:i.reorder_level,cost:i.cost,value:i.quantity*i.cost,supplier:sname(i.supplier_id)})))">Export CSV</button></div>`+
+cats.map(c=>{const l=D.items.filter(i=>i.area+" – "+i.category===c&&i.name.toLowerCase().includes(q));return l.length?`<h3>${esc(c)}</h3><div class="card">${tbl(["Item","Stock","Reorder at","Cost","Supplier",""],l.map(i=>`<tr><td>${esc(i.name)}</td><td class="${low(i)?"low":""}">${fmt(i.quantity)} ${esc(i.unit)}</td><td>${fmt(i.reorder_level)}</td><td>${peso(i.cost)}</td><td>${esc(sname(i.supplier_id))}</td><td><button class="s" onclick="itemDlg('${i.id}')">Edit</button> <button class="s r" onclick="delItem('${i.id}')">Delete</button></td></tr>`))}</div>`:""}).join("")}
+function itemDlg(id){const i=D.items.find(x=>x.id===id)||{name:"",area:"Bar",category:"",unit:"pcs",quantity:0,reorder_level:0,cost:0};
+$("#dlg").innerHTML=`<form id="df"><h2>${id?"Edit":"Add"} item</h2><label>Name</label><input id="x1" required value="${esc(i.name)}">
+<label>Area</label><select id="x2"><option ${i.area=="Bar"?"selected":""}>Bar</option><option ${i.area=="Kitchen"?"selected":""}>Kitchen</option></select>
+<label>Category (e.g. Beans, Milk, Meat &amp; Seafood, Produce, Pastries)</label><input id="x3" required value="${esc(i.category)}">
+<label>Unit</label><input id="x4" required value="${esc(i.unit)}"><label>Current stock</label><input id="x5" type="number" step="any" min="0" value="${i.quantity}">
+<label>Reorder level</label><input id="x6" type="number" step="any" min="0" value="${i.reorder_level}"><label>Cost per unit (₱)</label><input id="x7" type="number" step="any" min="0" value="${i.cost}">
+<label>Supplier</label><select id="x8"><option value="">None</option>${D.sup.map(s=>`<option value="${s.id}" ${s.id==i.supplier_id?"selected":""}>${esc(s.name)}</option>`).join("")}</select>
+<p><button class="b">Save</button> <button type="button" class="s" onclick="$('#dlg').close()">Cancel</button></p></form>`;
+$("#df").onsubmit=async e=>{e.preventDefault();const row={name:$("#x1").value.trim(),area:$("#x2").value,category:$("#x3").value.trim(),unit:$("#x4").value.trim(),quantity:+$("#x5").value,reorder_level:+$("#x6").value,cost:+$("#x7").value,supplier_id:$("#x8").value||null};
+const{error}=id?await sb.from("items").update(row).eq("id",id):await sb.from("items").insert(row);error?toast(error.message,1):($("#dlg").close(),toast("Saved."),load())};$("#dlg").showModal()}
+async function delItem(id){if(!confirm("Delete this item? Its history stays."))return;const{error}=await sb.from("items").delete().eq("id",id);error?toast(error.message,1):load()}
+
+/* SUPPLIERS */
+function sup(){return `<h2>Suppliers</h2><p><button class="b" onclick="supDlg()">Add supplier</button></p><div class="card">${tbl(["Supplier","Contact","Phone","Email","Items supplied",""],D.sup.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.contact)}</td><td>${esc(s.phone)}</td><td>${esc(s.email)}</td><td>${esc(D.items.filter(i=>i.supplier_id===s.id).map(i=>i.name).join(", "))}</td><td><button class="s" onclick="supDlg('${s.id}')">Edit</button> <button class="s r" onclick="delSup('${s.id}')">Delete</button></td></tr>`))}</div><p>Assign items to a supplier from the Inventory tab.</p>`}
+function supDlg(id){const s=D.sup.find(x=>x.id===id)||{};$("#dlg").innerHTML=`<form id="df"><h2>${id?"Edit":"Add"} supplier</h2><label>Name</label><input id="s1" required value="${esc(s.name)}"><label>Contact person</label><input id="s2" value="${esc(s.contact)}"><label>Phone</label><input id="s3" value="${esc(s.phone)}"><label>Email</label><input id="s4" value="${esc(s.email)}"><p><button class="b">Save</button> <button type="button" class="s" onclick="$('#dlg').close()">Cancel</button></p></form>`;
+$("#df").onsubmit=async e=>{e.preventDefault();const row={name:$("#s1").value.trim(),contact:$("#s2").value,phone:$("#s3").value,email:$("#s4").value};const{error}=id?await sb.from("suppliers").update(row).eq("id",id):await sb.from("suppliers").insert(row);error?toast(error.message,1):($("#dlg").close(),load())};$("#dlg").showModal()}
+async function delSup(id){if(confirm("Delete supplier?")){await sb.from("suppliers").delete().eq("id",id);load()}}
+
+/* SHOPPING LIST */
+function shopText(){const L=D.items.filter(low),g={};L.forEach(i=>(g[sname(i.supplier_id)]??=[]).push(i));
+return Object.entries(g).map(([s,l])=>s+"\n"+l.map(i=>`- ${i.name}: ${fmt(Math.max(i.reorder_level*2-i.quantity,1))} ${i.unit} (have ${fmt(i.quantity)})`).join("\n")).join("\n\n")}
+function shop(){const L=D.items.filter(low),g={};L.forEach(i=>(g[sname(i.supplier_id)]??=[]).push(i));
+return `<h2>Shopping list</h2><p class="noprint">Suggested order = enough to reach double the reorder level.</p><p class="noprint"><button class="b" onclick="navigator.clipboard.writeText(shopText()).then(()=>toast('Copied.'))">Copy</button> <button class="s" onclick="print()">Print</button></p>`+
+(L.length?Object.entries(g).map(([s,l])=>{const sp=D.sup.find(x=>x.name===s)||{};return `<h3>${esc(s)} <small>${esc(sp.phone||"")} ${esc(sp.email||"")}</small></h3><div class="card">${tbl(["Item","Have","Order"],l.map(i=>`<tr><td>${esc(i.name)}</td><td>${fmt(i.quantity)} ${esc(i.unit)}</td><td><b>${fmt(Math.max(i.reorder_level*2-i.quantity,1))} ${esc(i.unit)}</b></td></tr>`))}</div>`}).join(""):"<div class='card'>Nothing needs reordering.</div>")}
+
+/* HISTORY */
+function mvTable(l,act){return tbl(["When","Item","Change","Reason","Staff","Notes",act?"":""].slice(0,act?7:6),l.map(m=>`<tr class="${m.voided?"v":""}"><td>${when(m.created_at)}</td><td>${esc(m.item_name)}</td><td>${m.type==="in"?"+":m.type==="out"?"−":"±"}${fmt(m.quantity)}</td><td>${esc(m.reason)}</td><td>${esc(m.staff_name)}</td><td>${esc(m.notes)}${m.voided?` <b>VOIDED: ${esc(m.void_reason)}</b>`:""}</td>${act?`<td>${m.voided?"":`<button class="s r" onclick="voidMv('${m.id}')">Void</button>`}</td>`:""}</tr>`))}
+function histRows(){return D.mv.filter(m=>(!F.hi||m.item_name===F.hi)&&(!F.ht||m.type===F.ht)&&(!F.hr||m.reason===F.hr)&&(!F.hs||m.staff_name.toLowerCase().includes(F.hs.toLowerCase()))&&(!F.hf||m.created_at>=F.hf)&&(!F.ht2||m.created_at<=F.ht2+"T23:59:59"))}
+function hist(){const set=(k)=>`oninput="F.${k}=this.value;render()"`;const names=[...new Set(D.mv.map(m=>m.item_name))].sort();
+return `<h2>History</h2><div class="bar"><div><label>Item</label><select ${set("hi")}><option value="">All</option>${names.map(n=>`<option ${F.hi===n?"selected":""}>${esc(n)}</option>`).join("")}</select></div>
+<div><label>Type</label><select ${set("ht")}><option value="">All</option><option value="in" ${F.ht=="in"?"selected":""}>In</option><option value="out" ${F.ht=="out"?"selected":""}>Out</option><option value="adjust" ${F.ht=="adjust"?"selected":""}>Adjust</option></select></div>
+<div><label>Reason</label><select ${set("hr")}><option value="">All</option>${["Delivery","Returned","Daily Usage","Spoilage","Waste","Stocktake"].map(r=>`<option ${F.hr===r?"selected":""}>${r}</option>`).join("")}</select></div>
+<div><label>Staff</label><input ${set("hs")} value="${esc(F.hs||"")}"></div><div><label>From</label><input type="date" ${set("hf")} value="${F.hf||""}"></div><div><label>To</label><input type="date" ${set("ht2")} value="${F.ht2||""}"></div>
+<button class="s" onclick="csv('history',histRows().map(m=>({when:m.created_at,item:m.item_name,type:m.type,quantity:m.quantity,reason:m.reason,staff:m.staff_name,notes:m.notes,expiry:m.expiry,unit_cost:m.unit_cost,voided:m.voided,void_reason:m.void_reason})))">Export CSV</button></div><div class="card">${mvTable(histRows().slice(0,300),true)}</div>`}
+async function voidMv(id){const r=prompt("Reason for voiding? Stock will be reversed.");if(!r)return;const{error}=await sb.rpc("void_movement",{p_id:id,p_reason:r});error?toast(error.message,1):(toast("Voided. Stock corrected."),load())}
+
+/* APPROVALS */
+function appr(){return `<h2>Approvals</h2><h3>Mistake reports from staff</h3><div class="card">${tbl(["When","Entry","Staff note","From",""],D.cor.map(c=>`<tr><td>${when(c.created_at)}</td><td>${c.movements?esc(c.movements.type==="in"?"+":"−")+fmt(c.movements.quantity)+" "+esc(c.movements.item_name):""}</td><td>${esc(c.note)}</td><td>${esc(c.staff_name)}</td><td><button class="s r" onclick="voidMv('${c.movement_id}')">Void entry</button> <button class="s" onclick="rej('corrections','${c.id}','rejected')">Dismiss</button></td></tr>`))}</div>
+<h3>Stocktake counts</h3><div class="card">${tbl(["When","Item","Expected","Counted","Difference","By",""],D.cnt.map(s=>{const d=s.counted-s.expected;return `<tr><td>${when(s.created_at)}</td><td>${esc(s.item_name)}</td><td>${fmt(s.expected)}</td><td>${fmt(s.counted)}</td><td class="${d?"low":""}">${d>0?"+":""}${fmt(d)}</td><td>${esc(s.staff_name)}</td><td><button class="b" onclick="appCnt('${s.id}')">Approve</button> <button class="s" onclick="rej('stocktakes','${s.id}','rejected')">Reject</button></td></tr>`}))}</div>`}
+async function rej(t,id,s){await sb.from(t).update({status:s}).eq("id",id);load()}
+async function appCnt(id){const{error}=await sb.rpc("approve_count",{p_id:id});error?toast(error.message,1):(toast("Stock adjusted."),load())}
+
+/* REPORTS */
+function rep(){const mv=D.mv.filter(m=>!m.voided),out=mv.filter(m=>m.type==="out"),use=out.filter(m=>m.reason==="Daily Usage"),bad=out.filter(m=>["Spoilage","Waste"].includes(m.reason));
+const grp=(l,k,v)=>Object.entries(l.reduce((a,m)=>(a[k(m)]=(a[k(m)]||0)+v(m),a),{}));
+const wk=d=>{d=new Date(d);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.toISOString().slice(0,10)};
+const cost=m=>m.quantity*m.unit_cost,mo=m=>m.created_at.slice(0,7);
+const T=(h,e)=>`<div class="card">${tbl(h,e.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`))}</div>`;
+return `<h2>Reports</h2><h3>Waste &amp; spoilage cost per month</h3>${T(["Month","Lost to waste/spoilage"],grp(bad,mo,cost).sort().reverse().map(([k,v])=>[k,peso(v)]))}
+<h3>Usage per week (Daily Usage, by item count of units)</h3>${T(["Week starting","Units used","Cost of usage"],grp(use,m=>wk(m.created_at),m=>m.quantity).sort().reverse().slice(0,12).map(([k,v])=>[k,fmt(v),peso(grp(use.filter(m=>wk(m.created_at)===k),()=>"x",cost)[0]?.[1])]))}
+<h3>Most used items</h3>${T(["Item","Total used","Cost"],grp(use,m=>m.item_name,m=>m.quantity).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>[esc(k),fmt(v),peso(grp(use.filter(m=>m.item_name===k),()=>"x",cost)[0]?.[1])]))}
+<h3>Waste &amp; spoilage by item</h3>${T(["Item","Quantity","Cost lost"],grp(bad,m=>m.item_name,m=>m.quantity).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[esc(k),fmt(v),peso(grp(bad.filter(m=>m.item_name===k),()=>"x",cost)[0]?.[1])]))}
+<h3>Waste &amp; spoilage by person</h3>${T(["Staff","Entries","Cost lost"],grp(bad,m=>m.staff_name,()=>1).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[esc(k),v,peso(grp(bad.filter(m=>m.staff_name===k),()=>"x",cost)[0]?.[1])]))}`}
+
+/* SETTINGS */
+function set(){return `<h2>Settings</h2><div class="grid"><form class="card" onsubmit="return pinSave(event)"><h3 style="margin-top:0">Staff PIN</h3><label>New 4-digit PIN</label><input id="np" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required><p><button class="b">Change PIN</button></p></form>
+<form class="card" onsubmit="return pwSave(event)"><h3 style="margin-top:0">Your admin password</h3><label>New password (8+ characters)</label><input id="npw" type="password" minlength="8" required><p><button class="b">Change password</button></p></form></div>`}
+async function pinSave(e){e.preventDefault();const{error}=await sb.rpc("set_staff_pin",{p_new:$("#np").value});error?toast(error.message,1):(toast("Staff PIN changed."),e.target.reset());return false}
+async function pwSave(e){e.preventDefault();const{error}=await sb.auth.updateUser({password:$("#npw").value});error?toast(error.message,1):(toast("Password changed."),e.target.reset());return false}
+</script></body></html>
