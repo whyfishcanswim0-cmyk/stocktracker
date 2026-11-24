@@ -26,7 +26,7 @@ button.s{font:inherit;padding:.25rem .55rem;border:1px solid #b8c4be;background:
 <label for="pw">Password</label><input id="pw" type="password" required><p><button class="b" style="width:100%">Sign in</button></p></form></div>
 <div id="app" class="hidden">
 <header><b>Kopi Breyk · Admin</b><nav id="nav">
-<button data-v="dash" class="on">Dashboard</button><button data-v="inv">Inventory</button><button data-v="shop">Shopping list</button><button data-v="hist">History</button><button data-v="appr">Approvals <span id="badge"></span></button><button data-v="rep">Reports</button><button data-v="set">Settings</button><button id="ref">⟳ Refresh</button><button id="out">Sign out</button></nav></header>
+<button data-v="dash" class="on">Dashboard</button><button data-v="inv">Inventory</button><button data-v="shop">Shopping list</button><button data-v="hist">History</button><button data-v="appr">Approvals <span id="badge"></span></button><button data-v="rep">Monthly report</button><button data-v="set">Settings</button><button id="ref">⟳ Refresh</button><button id="out">Sign out</button></nav></header>
 <main id="m"></main></div>
 <dialog id="dlg"></dialog><div id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -138,17 +138,41 @@ function appr(){return `<h2>Approvals</h2><h3>Mistake reports from staff</h3><di
 async function rej(t,id,s){await sb.from(t).update({status:s}).eq("id",id);load()}
 async function appCnt(id){const{error}=await sb.rpc("approve_count",{p_id:id});error?toast(error.message,1):(toast("Stock adjusted."),load())}
 
-/* REPORTS */
-function rep(){const mv=D.mv.filter(m=>!m.voided),out=mv.filter(m=>m.type==="out"),use=out.filter(m=>m.reason==="Daily Usage"),bad=out.filter(m=>["Spoilage","Waste"].includes(m.reason));
-const grp=(l,k,v)=>Object.entries(l.reduce((a,m)=>(a[k(m)]=(a[k(m)]||0)+v(m),a),{}));
-const wk=d=>{d=new Date(d);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.toISOString().slice(0,10)};
-const cost=m=>m.quantity*m.unit_cost,mo=m=>m.created_at.slice(0,7);
-const T=(h,e)=>`<div class="card">${tbl(h,e.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`))}</div>`;
-return `<h2>Reports</h2><h3>Waste &amp; spoilage cost per month</h3>${T(["Month","Lost to waste/spoilage"],grp(bad,mo,cost).sort().reverse().map(([k,v])=>[k,peso(v)]))}
-<h3>Usage per week (Daily Usage, by item count of units)</h3>${T(["Week starting","Units used","Cost of usage"],grp(use,m=>wk(m.created_at),m=>m.quantity).sort().reverse().slice(0,12).map(([k,v])=>[k,fmt(v),peso(grp(use.filter(m=>wk(m.created_at)===k),()=>"x",cost)[0]?.[1])]))}
-<h3>Most used items</h3>${T(["Item","Total used","Cost"],grp(use,m=>m.item_name,m=>m.quantity).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>[esc(k),fmt(v),peso(grp(use.filter(m=>m.item_name===k),()=>"x",cost)[0]?.[1])]))}
-<h3>Waste &amp; spoilage by item</h3>${T(["Item","Quantity","Cost lost"],grp(bad,m=>m.item_name,m=>m.quantity).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[esc(k),fmt(v),peso(grp(bad.filter(m=>m.item_name===k),()=>"x",cost)[0]?.[1])]))}
-<h3>Waste &amp; spoilage by person</h3>${T(["Staff","Entries","Cost lost"],grp(bad,m=>m.staff_name,()=>1).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[esc(k),v,peso(grp(bad.filter(m=>m.staff_name===k),()=>"x",cost)[0]?.[1])]))}`}
+/* MONTHLY REPORT */
+const r2=n=>Math.round(n*100)/100,curYm=()=>{const n=new Date();return F.rm||`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`};
+const grp=(l,k,v)=>{const o={};l.forEach(x=>o[k(x)]=(o[k(x)]||0)+v(x));return Object.entries(o)};
+function monthData(ym){const[y,m]=ym.split("-").map(Number),a=new Date(y,m-1,1),b=new Date(y,m,1);
+const inM=x=>{const d=new Date(x.created_at);return d>=a&&d<b},after=x=>new Date(x.created_at)>=b,live=D.mv.filter(x=>!x.voided),sg=x=>x.type==="out"?-x.quantity:+x.quantity,net=l=>l.reduce((s,x)=>s+sg(x),0),mm=live.filter(inM),cost=x=>x.quantity*x.unit_cost;
+const items=D.items.map(it=>{const mine=live.filter(x=>x.item_id===it.id),mon=mine.filter(inM),close=+it.quantity-net(mine.filter(after)),open=close-net(mon),sum=(t,r)=>mon.filter(x=>x.type===t&&(!r||x.reason===r)).reduce((s,x)=>s+ +x.quantity,0);
+return{Item:it.name,Area:it.area,Unit:it.unit,Opening:r2(open),Received:r2(sum("in")),Used:r2(sum("out","Daily Usage")),Spoilage:r2(sum("out","Spoilage")),Waste:r2(sum("out","Waste")),Adjustments:r2(net(mon.filter(x=>x.type==="adjust"))),Closing:r2(close),"Stock value":r2(close*it.cost)}})
+.filter(r=>r.Opening||r.Received||r.Used||r.Spoilage||r.Waste||r.Adjustments||r.Closing).sort((x,y)=>x.Item.localeCompare(y.Item));
+const bad=mm.filter(x=>x.type==="out"&&["Spoilage","Waste"].includes(x.reason)),use=mm.filter(x=>x.type==="out"&&x.reason==="Daily Usage"),dl=mm.filter(x=>x.type==="in"&&x.reason==="Delivery");
+const money=l=>r2(l.reduce((s,x)=>s+cost(x),0));
+const wasteItem=grp(bad,x=>x.item_name,x=>x.quantity).sort((p,q)=>q[1]-p[1]).map(([k,v])=>({Item:k,Quantity:r2(v),"Cost lost":money(bad.filter(x=>x.item_name===k))}));
+const wastePerson=grp(bad,x=>x.staff_name,()=>1).sort((p,q)=>q[1]-p[1]).map(([k,v])=>({Staff:k,Entries:v,"Cost lost":money(bad.filter(x=>x.staff_name===k))}));
+const mostUsed=grp(use,x=>x.item_name,x=>x.quantity).sort((p,q)=>q[1]-p[1]).slice(0,15).map(([k,v])=>({Item:k,"Total used":r2(v),"Cost of usage":money(use.filter(x=>x.item_name===k))}));
+const counts=mm.filter(x=>x.type==="adjust").map(x=>({When:when(x.created_at),Item:x.item_name,Difference:r2(x.quantity),"Counted by":x.staff_name}));
+const voided=D.mv.filter(x=>x.voided&&x.voided_at&&(d=>d>=a&&d<b)(new Date(x.voided_at))).map(x=>({"Voided on":when(x.voided_at),Item:x.item_name,Type:x.type,Quantity:r2(x.quantity),"Entered by":x.staff_name,Reason:x.void_reason}));
+const log=D.mv.filter(inM).map(x=>({When:when(x.created_at),Item:x.item_name,Type:x.type,Quantity:r2(x.quantity),Reason:x.reason,Staff:x.staff_name,Notes:x.notes||"","Unit cost":x.unit_cost,Status:x.voided?"VOIDED: "+x.void_reason:""}));
+const summary=[["Deliveries logged",dl.length,0],["Cost of deliveries",money(dl),1],["Usage entries",use.length,0],["Cost of usage",money(use),1],["Waste & spoilage cost",money(bad),1],["Stocktake adjustments",counts.length,0],["Voided entries",voided.length,0],["Stock value at month end",r2(items.reduce((s,r)=>s+r["Stock value"],0)),1]];
+return{items,summary,wasteItem,wastePerson,mostUsed,counts,voided,log}}
+const oT=a=>a.length?tbl(Object.keys(a[0]),a.map(o=>`<tr>${Object.entries(o).map(([k,v])=>`<td>${typeof v==="number"?(/cost|value/i.test(k)?peso(v):fmt(v)):esc(v)}</td>`).join("")}</tr>`)):"<p class='mute'>Nothing this month.</p>";
+function rep(){const ym=curYm(),R=monthData(ym),label=new Date(ym+"-01T00:00:00").toLocaleString([],{month:"long",year:"numeric"});
+return `<h2>Monthly report: ${label}</h2><div class="bar"><div><label style="margin-top:0">Month</label><input type="month" value="${ym}" oninput="if(this.value){F.rm=this.value;render()}"></div><button class="b" onclick="exportMonth()">Download Excel</button><button class="s" onclick="print()">Print / Save as PDF</button></div>
+<div class="grid">${R.summary.map(([k,v,m])=>`<div class="card">${k}<div class="stat" style="font-size:1.4rem">${m?peso(v):fmt(v)}</div></div>`).join("")}</div>
+<h3>Stock movement per item (Bar)</h3><div class="card">${oT(R.items.filter(r=>r.Area==="Bar").map(({Area,...r})=>r))}</div>
+<h3>Stock movement per item (Kitchen)</h3><div class="card">${oT(R.items.filter(r=>r.Area==="Kitchen").map(({Area,...r})=>r))}</div>
+<h3>Waste &amp; spoilage by item</h3><div class="card">${oT(R.wasteItem)}</div>
+<h3>Waste &amp; spoilage by person</h3><div class="card">${oT(R.wastePerson)}</div>
+<h3>Most used items</h3><div class="card">${oT(R.mostUsed)}</div>
+<h3>Stocktake differences</h3><div class="card">${oT(R.counts)}</div>
+<h3>Voided entries</h3><div class="card">${oT(R.voided)}</div>
+<h3>Full movement log (${R.log.length})</h3><div class="card">${oT(R.log)}</div>
+<p class="mute">Opening and closing stock are worked out from the movement history. Costs use the price recorded when each entry was made (stock value uses current prices). Only the latest 5,000 movements are loaded.</p>`}
+function exportMonth(){const ym=curYm(),R=monthData(ym),wb=XLSX.utils.book_new();
+const add=(n,a)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(a.length?a:[{Note:"Nothing this month"}]),n);
+add("Summary",R.summary.map(([k,v])=>({Measure:k,Value:v})));add("Items",R.items);add("Waste by item",R.wasteItem);add("Waste by person",R.wastePerson);add("Most used",R.mostUsed);add("Stocktakes",R.counts);add("Voided",R.voided);add("Movement log",R.log);
+XLSX.writeFile(wb,`monthly-report-${ym}.xlsx`)}
 
 /* SETTINGS */
 function set(){return `<h2>Settings</h2><div class="grid"><form class="card" onsubmit="return pinSave(event)"><h3 style="margin-top:0">Staff PIN</h3><label>New 4-digit PIN</label><input id="np" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required><p><button class="b">Change PIN</button></p></form>
