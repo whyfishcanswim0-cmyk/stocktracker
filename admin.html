@@ -26,9 +26,10 @@ button.s{font:inherit;padding:.25rem .55rem;border:1px solid #b8c4be;background:
 <label for="pw">Password</label><input id="pw" type="password" required><p><button class="b" style="width:100%">Sign in</button></p></form></div>
 <div id="app" class="hidden">
 <header><b>Kopi Breyk · Admin</b><nav id="nav">
-<button data-v="dash" class="on">Dashboard</button><button data-v="inv">Inventory</button><button data-v="sup">Suppliers</button><button data-v="shop">Shopping list</button><button data-v="hist">History</button><button data-v="appr">Approvals <span id="badge"></span></button><button data-v="rep">Reports</button><button data-v="set">Settings</button><button id="ref">⟳ Refresh</button><button id="out">Sign out</button></nav></header>
+<button data-v="dash" class="on">Dashboard</button><button data-v="inv">Inventory</button><button data-v="shop">Shopping list</button><button data-v="hist">History</button><button data-v="appr">Approvals <span id="badge"></span></button><button data-v="rep">Reports</button><button data-v="set">Settings</button><button id="ref">⟳ Refresh</button><button id="out">Sign out</button></nav></header>
 <main id="m"></main></div>
 <dialog id="dlg"></dialog><div id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL="https://nwlgqynzcohwamlfcekk.supabase.co", SUPABASE_KEY="sb_publishable_IesjicwYQCtqBhIBp3YXow_Adg58C-_";
@@ -53,12 +54,11 @@ function start(){$("#login").classList.add("hidden");$("#app").classList.remove(
 setInterval(()=>{if(!$("#dlg").open&&view!=="set"&&!document.activeElement.matches("input,select"))load()},30000)}
 $("#nav").onclick=e=>{const b=e.target.closest("button");if(!b||!b.dataset.v)return;view=b.dataset.v;document.querySelectorAll("#nav button").forEach(x=>x.classList.toggle("on",x===b));render()};
 async function load(){const q=t=>sb.from(t).select("*");
-const r=await Promise.all([q("items").order("name"),q("suppliers").order("name"),q("movements").order("created_at",{ascending:false}).limit(5000),
+const r=await Promise.all([q("items").order("name"),q("movements").order("created_at",{ascending:false}).limit(5000),
 sb.from("corrections").select("*,movements(item_name,quantity,type,reason)").eq("status","pending"),q("stocktakes").eq("status","pending")]);
 const err=r.find(x=>x.error);if(err)return toast(err.error.message,1);
-[D.items,D.sup,D.mv,D.cor,D.cnt]=r.map(x=>x.data);const n=D.cor.length+D.cnt.length;$("#badge").textContent=n?`(${n})`:"";render()}
-const sname=id=>(D.sup.find(s=>s.id===id)||{}).name||"No supplier";
-function render(){$("#m").innerHTML=({dash,inv,sup,shop,hist,appr,rep,set})[view]()}
+[D.items,D.mv,D.cor,D.cnt]=r.map(x=>x.data);const n=D.cor.length+D.cnt.length;$("#badge").textContent=n?`(${n})`:"";render()}
+function render(){$("#m").innerHTML=({dash,inv,shop,hist,appr,rep,set})[view]()}
 
 /* DASHBOARD */
 function dash(){const L=D.items.filter(low),val=D.items.reduce((s,i)=>s+i.quantity*i.cost,0),today=new Date().toISOString().slice(0,10);
@@ -70,32 +70,56 @@ return `<h2>Dashboard</h2><div class="grid"><div class="card">Items<div class="s
 
 /* INVENTORY */
 function inv(){const q=(F.iq||"").toLowerCase(),cats=[...new Set(D.items.map(i=>i.area+" – "+i.category))].sort();
-return `<h2>Inventory</h2><div class="bar"><div><label>Search</label><input id="iq" value="${esc(F.iq||"")}" oninput="F.iq=this.value;render();this.focus()"></div><button class="b" onclick="itemDlg()">Add item</button><button class="s" onclick="csv('inventory',D.items.map(i=>({name:i.name,area:i.area,category:i.category,unit:i.unit,quantity:i.quantity,reorder_level:i.reorder_level,cost:i.cost,value:i.quantity*i.cost,supplier:sname(i.supplier_id)})))">Export CSV</button></div>`+
-cats.map(c=>{const l=D.items.filter(i=>i.area+" – "+i.category===c&&i.name.toLowerCase().includes(q));return l.length?`<h3>${esc(c)}</h3><div class="card">${tbl(["Item","Stock","Reorder at","Cost","Supplier",""],l.map(i=>`<tr><td>${esc(i.name)}</td><td class="${low(i)?"low":""}">${fmt(i.quantity)} ${esc(i.unit)}</td><td>${fmt(i.reorder_level)}</td><td>${peso(i.cost)}</td><td>${esc(sname(i.supplier_id))}</td><td><button class="s" onclick="itemDlg('${i.id}')">Edit</button> <button class="s r" onclick="delItem('${i.id}')">Delete</button></td></tr>`))}</div>`:""}).join("")}
+return `<h2>Inventory</h2><div class="bar"><div><label>Search</label><input id="iq" value="${esc(F.iq||"")}" oninput="F.iq=this.value;render();this.focus()"></div><button class="b" onclick="itemDlg()">Add item</button><button class="b" onclick="$('#xf').click()">Upload Excel</button><input id="xf" type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="readFile(this.files[0]);this.value=''"><button class="s" onclick="template()">Download template</button><button class="s" onclick="exportXlsx()">Export Excel</button><button class="s" onclick="csv('inventory',invRows())">Export CSV</button></div>`+
+cats.map(c=>{const l=D.items.filter(i=>i.area+" – "+i.category===c&&i.name.toLowerCase().includes(q));return l.length?`<h3>${esc(c)}</h3><div class="card">${tbl(["Item","Stock","Reorder at","Cost",""],l.map(i=>`<tr><td>${esc(i.name)}</td><td class="${low(i)?"low":""}">${fmt(i.quantity)} ${esc(i.unit)}</td><td>${fmt(i.reorder_level)}</td><td>${peso(i.cost)}</td><td><button class="s" onclick="itemDlg('${i.id}')">Edit</button> <button class="s r" onclick="delItem('${i.id}')">Delete</button></td></tr>`))}</div>`:""}).join("")}
 function itemDlg(id){const i=D.items.find(x=>x.id===id)||{name:"",area:"Bar",category:"",unit:"pcs",quantity:0,reorder_level:0,cost:0};
 $("#dlg").innerHTML=`<form id="df"><h2>${id?"Edit":"Add"} item</h2><label>Name</label><input id="x1" required value="${esc(i.name)}">
 <label>Area</label><select id="x2"><option ${i.area=="Bar"?"selected":""}>Bar</option><option ${i.area=="Kitchen"?"selected":""}>Kitchen</option></select>
 <label>Category (e.g. Beans, Milk, Meat &amp; Seafood, Produce, Pastries)</label><input id="x3" required value="${esc(i.category)}">
 <label>Unit</label><input id="x4" required value="${esc(i.unit)}"><label>Current stock</label><input id="x5" type="number" step="any" min="0" value="${i.quantity}">
 <label>Reorder level</label><input id="x6" type="number" step="any" min="0" value="${i.reorder_level}"><label>Cost per unit (₱)</label><input id="x7" type="number" step="any" min="0" value="${i.cost}">
-<label>Supplier</label><select id="x8"><option value="">None</option>${D.sup.map(s=>`<option value="${s.id}" ${s.id==i.supplier_id?"selected":""}>${esc(s.name)}</option>`).join("")}</select>
 <p><button class="b">Save</button> <button type="button" class="s" onclick="$('#dlg').close()">Cancel</button></p></form>`;
-$("#df").onsubmit=async e=>{e.preventDefault();const row={name:$("#x1").value.trim(),area:$("#x2").value,category:$("#x3").value.trim(),unit:$("#x4").value.trim(),quantity:+$("#x5").value,reorder_level:+$("#x6").value,cost:+$("#x7").value,supplier_id:$("#x8").value||null};
+$("#df").onsubmit=async e=>{e.preventDefault();const row={name:$("#x1").value.trim(),area:$("#x2").value,category:$("#x3").value.trim(),unit:$("#x4").value.trim(),quantity:+$("#x5").value,reorder_level:+$("#x6").value,cost:+$("#x7").value};
 const{error}=id?await sb.from("items").update(row).eq("id",id):await sb.from("items").insert(row);error?toast(error.message,1):($("#dlg").close(),toast("Saved."),load())};$("#dlg").showModal()}
 async function delItem(id){if(!confirm("Delete this item? Its history stays."))return;const{error}=await sb.from("items").delete().eq("id",id);error?toast(error.message,1):load()}
 
-/* SUPPLIERS */
-function sup(){return `<h2>Suppliers</h2><p><button class="b" onclick="supDlg()">Add supplier</button></p><div class="card">${tbl(["Supplier","Contact","Phone","Email","Items supplied",""],D.sup.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.contact)}</td><td>${esc(s.phone)}</td><td>${esc(s.email)}</td><td>${esc(D.items.filter(i=>i.supplier_id===s.id).map(i=>i.name).join(", "))}</td><td><button class="s" onclick="supDlg('${s.id}')">Edit</button> <button class="s r" onclick="delSup('${s.id}')">Delete</button></td></tr>`))}</div><p>Assign items to a supplier from the Inventory tab.</p>`}
-function supDlg(id){const s=D.sup.find(x=>x.id===id)||{};$("#dlg").innerHTML=`<form id="df"><h2>${id?"Edit":"Add"} supplier</h2><label>Name</label><input id="s1" required value="${esc(s.name)}"><label>Contact person</label><input id="s2" value="${esc(s.contact)}"><label>Phone</label><input id="s3" value="${esc(s.phone)}"><label>Email</label><input id="s4" value="${esc(s.email)}"><p><button class="b">Save</button> <button type="button" class="s" onclick="$('#dlg').close()">Cancel</button></p></form>`;
-$("#df").onsubmit=async e=>{e.preventDefault();const row={name:$("#s1").value.trim(),contact:$("#s2").value,phone:$("#s3").value,email:$("#s4").value};const{error}=id?await sb.from("suppliers").update(row).eq("id",id):await sb.from("suppliers").insert(row);error?toast(error.message,1):($("#dlg").close(),load())};$("#dlg").showModal()}
-async function delSup(id){if(confirm("Delete supplier?")){await sb.from("suppliers").delete().eq("id",id);load()}}
+/* EXCEL IMPORT / EXPORT */
+const COLS=["Name","Area","Category","Unit","Stock","Reorder Level","Cost"];
+const invRows=()=>D.items.map(i=>({Name:i.name,Area:i.area,Category:i.category,Unit:i.unit,Stock:+i.quantity,"Reorder Level":+i.reorder_level,Cost:+i.cost}));
+function saveXlsx(rows,name,sheet){const ws=XLSX.utils.json_to_sheet(rows,{header:COLS});ws["!cols"]=[30,10,24,9,10,15,12].map(w=>({wch:w}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,sheet);XLSX.writeFile(wb,name)}
+function exportXlsx(){if(!D.items.length)return toast("Nothing to export",1);saveXlsx(invRows(),"inventory.xlsx","Inventory")}
+function template(){saveXlsx([{Name:"Eggs",Area:"Kitchen",Category:"Dairy & Eggs",Unit:"tray",Stock:6,"Reorder Level":3,Cost:260}],"inventory-template.xlsx","Ingredients")}
+let IMP=[];
+function readFile(f){if(!f)return;const rd=new FileReader();rd.onload=e=>{try{const wb=XLSX.read(e.target.result,{type:"array"});previewImport(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""}))}catch(x){toast("Could not read that file.",1)}};rd.readAsArrayBuffer(f)}
+function pick(r,names){for(const k of Object.keys(r)){if(names.includes(k.toLowerCase().replace(/[^a-z]/g,"")))return r[k]}return ""}
+function previewImport(rows){const seen={};
+rows.forEach((r,idx)=>{const o={name:String(pick(r,["name","item","ingredient"])).trim(),area:String(pick(r,["area"])).trim(),category:String(pick(r,["category"])).trim(),unit:String(pick(r,["unit"])).trim()||"pcs",quantity:+pick(r,["stock","quantity","qty"])||0,reorder_level:+pick(r,["reorderlevel","reorder"])||0,cost:+pick(r,["cost","price"])||0,row:idx+2};
+if(!o.name&&!o.category&&!o.area)return;
+const a=o.area.toLowerCase();o.area=a==="bar"?"Bar":a==="kitchen"?"Kitchen":o.area;
+o.err=!o.name?"Missing name":!["Bar","Kitchen"].includes(o.area)?"Area must be Bar or Kitchen":!o.category?"Missing category":o.quantity<0||o.reorder_level<0||o.cost<0?"Negative number":"";
+const key=o.area+"|"+o.name.toLowerCase();if(!o.err&&seen[key]){seen[key].err="Duplicate of row "+o.row;}seen[key]=o;
+const ex=D.items.find(i=>i.name.toLowerCase()===o.name.toLowerCase()&&i.area===o.area);o.id=ex&&ex.id;(previewImport.l??=[]).push(o)});
+IMP=previewImport.l||[];previewImport.l=null;
+const bad=IMP.filter(o=>o.err),ok=IMP.filter(o=>!o.err),nw=ok.filter(o=>!o.id),up=ok.filter(o=>o.id);
+if(!IMP.length)return toast("No rows found. Use the template headings: "+COLS.join(", "),1);
+$("#dlg").innerHTML=`<h2>Import preview</h2><p><b>${nw.length}</b> new items · <b>${up.length}</b> existing items updated · <b class="${bad.length?"low":""}">${bad.length}</b> problem rows (skipped)</p>
+<p class="mute">Existing items keep their current stock. Only category, unit, reorder level and cost are updated.</p>
+${bad.length?`<div style="max-height:150px;overflow:auto;margin-bottom:.8rem">${tbl(["Row","Name","Problem"],bad.map(o=>`<tr><td>${o.row}</td><td>${esc(o.name)}</td><td class="low">${o.err}</td></tr>`))}</div>`:""}
+<p><button class="b" id="goimp" ${ok.length?"":"disabled"}>Import ${ok.length} rows</button> <button class="s" onclick="$('#dlg').close()">Cancel</button></p>`;
+$("#goimp").onclick=doImport;$("#dlg").showModal()}
+async function doImport(){const btn=$("#goimp");btn.disabled=true;btn.textContent="Importing…";
+const ok=IMP.filter(o=>!o.err),nw=ok.filter(o=>!o.id).map(o=>({name:o.name,area:o.area,category:o.category,unit:o.unit,quantity:o.quantity,reorder_level:o.reorder_level,cost:o.cost}));
+try{for(let i=0;i<nw.length;i+=200){const{error}=await sb.from("items").insert(nw.slice(i,i+200));if(error)throw error}
+for(const o of ok.filter(o=>o.id)){const{error}=await sb.from("items").update({category:o.category,unit:o.unit,reorder_level:o.reorder_level,cost:o.cost}).eq("id",o.id);if(error)throw error}
+$("#dlg").close();toast("Import done.");load()}catch(e){toast(e.message,1);btn.disabled=false;btn.textContent="Try again"}}
 
 /* SHOPPING LIST */
-function shopText(){const L=D.items.filter(low),g={};L.forEach(i=>(g[sname(i.supplier_id)]??=[]).push(i));
-return Object.entries(g).map(([s,l])=>s+"\n"+l.map(i=>`- ${i.name}: ${fmt(Math.max(i.reorder_level*2-i.quantity,1))} ${i.unit} (have ${fmt(i.quantity)})`).join("\n")).join("\n\n")}
-function shop(){const L=D.items.filter(low),g={};L.forEach(i=>(g[sname(i.supplier_id)]??=[]).push(i));
+function shopGroups(){const g={Bar:[],Kitchen:[]};D.items.filter(low).forEach(i=>g[i.area].push(i));return g}
+const need=i=>fmt(Math.max(i.reorder_level*2-i.quantity,1));
+function shopText(){return Object.entries(shopGroups()).filter(([,l])=>l.length).map(([a,l])=>a.toUpperCase()+"\n"+l.map(i=>`- ${i.name}: ${need(i)} ${i.unit} (have ${fmt(i.quantity)})`).join("\n")).join("\n\n")}
+function shop(){const g=shopGroups(),n=D.items.filter(low).length;
 return `<h2>Shopping list</h2><p class="noprint">Suggested order = enough to reach double the reorder level.</p><p class="noprint"><button class="b" onclick="navigator.clipboard.writeText(shopText()).then(()=>toast('Copied.'))">Copy</button> <button class="s" onclick="print()">Print</button></p>`+
-(L.length?Object.entries(g).map(([s,l])=>{const sp=D.sup.find(x=>x.name===s)||{};return `<h3>${esc(s)} <small>${esc(sp.phone||"")} ${esc(sp.email||"")}</small></h3><div class="card">${tbl(["Item","Have","Order"],l.map(i=>`<tr><td>${esc(i.name)}</td><td>${fmt(i.quantity)} ${esc(i.unit)}</td><td><b>${fmt(Math.max(i.reorder_level*2-i.quantity,1))} ${esc(i.unit)}</b></td></tr>`))}</div>`}).join(""):"<div class='card'>Nothing needs reordering.</div>")}
+(n?Object.entries(g).filter(([,l])=>l.length).map(([a,l])=>`<h3>${a}</h3><div class="card">${tbl(["Item","Have","Order"],l.map(i=>`<tr><td>${esc(i.name)}</td><td>${fmt(i.quantity)} ${esc(i.unit)}</td><td><b>${need(i)} ${esc(i.unit)}</b></td></tr>`))}</div>`).join(""):"<div class='card'>Nothing needs reordering.</div>")}
 
 /* HISTORY */
 function mvTable(l,act){return tbl(["When","Item","Change","Reason","Staff","Notes",act?"":""].slice(0,act?7:6),l.map(m=>`<tr class="${m.voided?"v":""}"><td>${when(m.created_at)}</td><td>${esc(m.item_name)}</td><td>${m.type==="in"?"+":m.type==="out"?"−":"±"}${fmt(m.quantity)}</td><td>${esc(m.reason)}</td><td>${esc(m.staff_name)}</td><td>${esc(m.notes)}${m.voided?` <b>VOIDED: ${esc(m.void_reason)}</b>`:""}</td>${act?`<td>${m.voided?"":`<button class="s r" onclick="voidMv('${m.id}')">Void</button>`}</td>`:""}</tr>`))}
