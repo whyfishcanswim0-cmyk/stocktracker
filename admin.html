@@ -26,7 +26,7 @@ button.s{font:inherit;padding:.25rem .55rem;border:1px solid #b8c4be;background:
 <label for="pw">Password</label><input id="pw" type="password" required><p><button class="b" style="width:100%">Sign in</button></p></form></div>
 <div id="app" class="hidden">
 <header><b>Kopi Breyk · Admin</b><nav id="nav">
-<button data-v="dash" class="on">Dashboard</button><button data-v="inv">Inventory</button><button data-v="shop">Shopping list</button><button data-v="hist">History</button><button data-v="appr">Approvals <span id="badge"></span></button><button data-v="rep">Monthly report</button><button data-v="set">Settings</button><button id="ref">⟳ Refresh</button><button id="out">Sign out</button></nav></header>
+<button data-v="dash" class="on">Dashboard</button><button data-v="inv">Inventory</button><button data-v="shop">Shopping list</button><button data-v="hist">History</button><button data-v="prod">Production</button><button data-v="rep">Monthly report</button><button data-v="set">Settings</button><button id="ref">⟳ Refresh</button><button id="out">Sign out</button></nav></header>
 <main id="m"></main></div>
 <dialog id="dlg"></dialog><div id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -54,46 +54,47 @@ function start(){$("#login").classList.add("hidden");$("#app").classList.remove(
 setInterval(()=>{if(!$("#dlg").open&&view!=="set"&&!document.activeElement.matches("input,select"))load()},30000)}
 $("#nav").onclick=e=>{const b=e.target.closest("button");if(!b||!b.dataset.v)return;view=b.dataset.v;document.querySelectorAll("#nav button").forEach(x=>x.classList.toggle("on",x===b));render()};
 async function load(){const q=t=>sb.from(t).select("*");
-const r=await Promise.all([q("items").order("name"),q("movements").order("created_at",{ascending:false}).limit(5000),
-sb.from("corrections").select("*,movements(item_name,quantity,type,reason)").eq("status","pending"),q("stocktakes").eq("status","pending")]);
+const r=await Promise.all([q("items").order("name"),q("movements").order("created_at",{ascending:false}).limit(5000)]);
 const err=r.find(x=>x.error);if(err)return toast(err.error.message,1);
-[D.items,D.mv,D.cor,D.cnt]=r.map(x=>x.data);const n=D.cor.length+D.cnt.length;$("#badge").textContent=n?`(${n})`:"";render()}
-function render(){$("#m").innerHTML=({dash,inv,shop,hist,appr,rep,set})[view]()}
+[D.items,D.mv]=r.map(x=>x.data);render()}
+function render(){$("#m").innerHTML=({dash,inv,prod,shop,hist,rep,set})[view]()}
 
 /* DASHBOARD */
 function dash(){const L=D.items.filter(low),val=D.items.reduce((s,i)=>s+i.quantity*i.cost,0),today=new Date().toISOString().slice(0,10);
 const exp=D.mv.filter(m=>m.type==="in"&&m.expiry&&!m.voided&&m.expiry>=today).sort((a,b)=>a.expiry.localeCompare(b.expiry)).slice(0,10);
-return `<h2>Dashboard</h2><div class="grid"><div class="card">Items<div class="stat">${D.items.length}</div></div><div class="card">Running low<div class="stat low">${L.length}</div></div><div class="card">Stock value<div class="stat">${peso(val)}</div></div><div class="card">Waiting for approval<div class="stat">${D.cor.length+D.cnt.length}</div></div></div>
+return `<h2>Dashboard</h2><div class="grid"><div class="card">Items<div class="stat">${D.items.length}</div></div><div class="card">Running low<div class="stat low">${L.length}</div></div><div class="card">Stock value<div class="stat">${peso(val)}</div></div></div>
 <h3>Low stock</h3>${L.length?`<div class="alert">${L.map(i=>`<div>${esc(i.name)} (${i.area}): <b>${fmt(i.quantity)}</b> ${esc(i.unit)} left, reorder at ${fmt(i.reorder_level)}</div>`).join("")}</div>`:"<div class='card'>Nothing is running low.</div>"}
 <h3>Use these first (expiring soonest)</h3><div class="card">${tbl(["Item","Expires","Received","By"],exp.map(m=>`<tr><td>${esc(m.item_name)}</td><td>${m.expiry}</td><td>${fmt(m.quantity)}</td><td>${esc(m.staff_name)}</td></tr>`))}</div>
 <h3>Recent movements</h3><div class="card">${mvTable(D.mv.slice(0,8),false)}</div>`}
 
 /* INVENTORY */
-function inv(){const q=(F.iq||"").toLowerCase(),cats=[...new Set(D.items.map(i=>i.area+" – "+i.category))].sort();
+const gkey=i=>(i.kind==="prepared"?"Prepared · ":"")+i.area+" – "+i.category;
+function inv(){const q=(F.iq||"").toLowerCase(),cats=[...new Set(D.items.map(gkey))].sort();
 return `<h2>Inventory</h2><div class="bar"><div><label>Search</label><input id="iq" value="${esc(F.iq||"")}" oninput="F.iq=this.value;render();this.focus()"></div><button class="b" onclick="itemDlg()">Add item</button><button class="b" onclick="$('#xf').click()">Upload Excel</button><input id="xf" type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="readFile(this.files[0]);this.value=''"><button class="s" onclick="template()">Download template</button><button class="s" onclick="exportXlsx()">Export Excel</button><button class="s" onclick="csv('inventory',invRows())">Export CSV</button></div>`+
-cats.map(c=>{const l=D.items.filter(i=>i.area+" – "+i.category===c&&i.name.toLowerCase().includes(q));return l.length?`<h3>${esc(c)}</h3><div class="card">${tbl(["Item","Stock","Reorder at","Cost",""],l.map(i=>`<tr><td>${esc(i.name)}</td><td class="${low(i)?"low":""}">${fmt(i.quantity)} ${esc(i.unit)}</td><td>${fmt(i.reorder_level)}</td><td>${peso(i.cost)}</td><td><button class="s" onclick="itemDlg('${i.id}')">Edit</button> <button class="s r" onclick="delItem('${i.id}')">Delete</button></td></tr>`))}</div>`:""}).join("")}
-function itemDlg(id){const i=D.items.find(x=>x.id===id)||{name:"",area:"Bar",category:"",unit:"pcs",quantity:0,reorder_level:0,cost:0};
+cats.map(c=>{const l=D.items.filter(i=>gkey(i)===c&&i.name.toLowerCase().includes(q));return l.length?`<h3>${esc(c)}</h3><div class="card">${tbl(["Item","Stock","Reorder at","Cost",""],l.map(i=>`<tr><td>${esc(i.name)}</td><td class="${low(i)?"low":""}">${fmt(i.quantity)} ${esc(i.unit)}</td><td>${fmt(i.reorder_level)}</td><td>${peso(i.cost)}</td><td><button class="s" onclick="itemDlg('${i.id}')">Edit</button> <button class="s r" onclick="delItem('${i.id}')">Delete</button></td></tr>`))}</div>`:""}).join("")}
+function itemDlg(id){const i=D.items.find(x=>x.id===id)||{name:"",area:"Bar",category:"",unit:"pcs",quantity:0,reorder_level:0,cost:0,kind:"ingredient"};
 $("#dlg").innerHTML=`<form id="df"><h2>${id?"Edit":"Add"} item</h2><label>Name</label><input id="x1" required value="${esc(i.name)}">
 <label>Area</label><select id="x2"><option ${i.area=="Bar"?"selected":""}>Bar</option><option ${i.area=="Kitchen"?"selected":""}>Kitchen</option></select>
+<label>Type</label><select id="x9"><option value="ingredient" ${i.kind!="prepared"?"selected":""}>Ingredient</option><option value="prepared" ${i.kind=="prepared"?"selected":""}>Prepared food (made in-house)</option></select>
 <label>Category (e.g. Beans, Milk, Meat &amp; Seafood, Produce, Pastries)</label><input id="x3" required value="${esc(i.category)}">
 <label>Unit</label><input id="x4" required value="${esc(i.unit)}"><label>Current stock</label><input id="x5" type="number" step="any" min="0" value="${i.quantity}">
 <label>Reorder level</label><input id="x6" type="number" step="any" min="0" value="${i.reorder_level}"><label>Cost per unit (₱)</label><input id="x7" type="number" step="any" min="0" value="${i.cost}">
 <p><button class="b">Save</button> <button type="button" class="s" onclick="$('#dlg').close()">Cancel</button></p></form>`;
-$("#df").onsubmit=async e=>{e.preventDefault();const row={name:$("#x1").value.trim(),area:$("#x2").value,category:$("#x3").value.trim(),unit:$("#x4").value.trim(),quantity:+$("#x5").value,reorder_level:+$("#x6").value,cost:+$("#x7").value};
+$("#df").onsubmit=async e=>{e.preventDefault();const row={name:$("#x1").value.trim(),area:$("#x2").value,category:$("#x3").value.trim(),unit:$("#x4").value.trim(),quantity:+$("#x5").value,reorder_level:+$("#x6").value,cost:+$("#x7").value,kind:$("#x9").value};
 const{error}=id?await sb.from("items").update(row).eq("id",id):await sb.from("items").insert(row);error?toast(error.message,1):($("#dlg").close(),toast("Saved."),load())};$("#dlg").showModal()}
 async function delItem(id){if(!confirm("Delete this item? Its history stays."))return;const{error}=await sb.from("items").delete().eq("id",id);error?toast(error.message,1):load()}
 
 /* EXCEL IMPORT / EXPORT */
-const COLS=["Name","Area","Category","Unit","Stock","Reorder Level","Cost"];
-const invRows=()=>D.items.map(i=>({Name:i.name,Area:i.area,Category:i.category,Unit:i.unit,Stock:+i.quantity,"Reorder Level":+i.reorder_level,Cost:+i.cost}));
-function saveXlsx(rows,name,sheet){const ws=XLSX.utils.json_to_sheet(rows,{header:COLS});ws["!cols"]=[30,10,24,9,10,15,12].map(w=>({wch:w}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,sheet);XLSX.writeFile(wb,name)}
+const COLS=["Name","Area","Category","Unit","Stock","Reorder Level","Cost","Type"];
+const invRows=()=>D.items.map(i=>({Name:i.name,Area:i.area,Category:i.category,Unit:i.unit,Stock:+i.quantity,"Reorder Level":+i.reorder_level,Cost:+i.cost,Type:i.kind==="prepared"?"Prepared":"Ingredient"}));
+function saveXlsx(rows,name,sheet){const ws=XLSX.utils.json_to_sheet(rows,{header:COLS});ws["!cols"]=[30,10,24,9,10,15,12,12].map(w=>({wch:w}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,sheet);XLSX.writeFile(wb,name)}
 function exportXlsx(){if(!D.items.length)return toast("Nothing to export",1);saveXlsx(invRows(),"inventory.xlsx","Inventory")}
-function template(){saveXlsx([{Name:"Eggs",Area:"Kitchen",Category:"Dairy & Eggs",Unit:"tray",Stock:6,"Reorder Level":3,Cost:260}],"inventory-template.xlsx","Ingredients")}
+function template(){saveXlsx([{Name:"Eggs",Area:"Kitchen",Category:"Dairy & Eggs",Unit:"tray",Stock:6,"Reorder Level":3,Cost:260,Type:"Ingredient"}],"inventory-template.xlsx","Ingredients")}
 let IMP=[];
 function readFile(f){if(!f)return;const rd=new FileReader();rd.onload=e=>{try{const wb=XLSX.read(e.target.result,{type:"array"});previewImport(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""}))}catch(x){toast("Could not read that file.",1)}};rd.readAsArrayBuffer(f)}
 function pick(r,names){for(const k of Object.keys(r)){if(names.includes(k.toLowerCase().replace(/[^a-z]/g,"")))return r[k]}return ""}
 function previewImport(rows){const seen={};
-rows.forEach((r,idx)=>{const o={name:String(pick(r,["name","item","ingredient"])).trim(),area:String(pick(r,["area"])).trim(),category:String(pick(r,["category"])).trim(),unit:String(pick(r,["unit"])).trim()||"pcs",quantity:+pick(r,["stock","quantity","qty"])||0,reorder_level:+pick(r,["reorderlevel","reorder"])||0,cost:+pick(r,["cost","price"])||0,row:idx+2};
+rows.forEach((r,idx)=>{const o={name:String(pick(r,["name","item","ingredient"])).trim(),area:String(pick(r,["area"])).trim(),category:String(pick(r,["category"])).trim(),unit:String(pick(r,["unit"])).trim()||"pcs",quantity:+pick(r,["stock","quantity","qty"])||0,reorder_level:+pick(r,["reorderlevel","reorder"])||0,cost:+pick(r,["cost","price"])||0,kind:/^prep/i.test(String(pick(r,["type","kind"])).trim())?"prepared":"ingredient",row:idx+2};
 if(!o.name&&!o.category&&!o.area)return;
 const a=o.area.toLowerCase();o.area=a==="bar"?"Bar":a==="kitchen"?"Kitchen":o.area;
 o.err=!o.name?"Missing name":!["Bar","Kitchen"].includes(o.area)?"Area must be Bar or Kitchen":!o.category?"Missing category":o.quantity<0||o.reorder_level<0||o.cost<0?"Negative number":"";
@@ -108,9 +109,9 @@ ${bad.length?`<div style="max-height:150px;overflow:auto;margin-bottom:.8rem">${
 <p><button class="b" id="goimp" ${ok.length?"":"disabled"}>Import ${ok.length} rows</button> <button class="s" onclick="$('#dlg').close()">Cancel</button></p>`;
 $("#goimp").onclick=doImport;$("#dlg").showModal()}
 async function doImport(){const btn=$("#goimp");btn.disabled=true;btn.textContent="Importing…";
-const ok=IMP.filter(o=>!o.err),nw=ok.filter(o=>!o.id).map(o=>({name:o.name,area:o.area,category:o.category,unit:o.unit,quantity:o.quantity,reorder_level:o.reorder_level,cost:o.cost}));
+const ok=IMP.filter(o=>!o.err),nw=ok.filter(o=>!o.id).map(o=>({name:o.name,area:o.area,category:o.category,unit:o.unit,quantity:o.quantity,reorder_level:o.reorder_level,cost:o.cost,kind:o.kind}));
 try{for(let i=0;i<nw.length;i+=200){const{error}=await sb.from("items").insert(nw.slice(i,i+200));if(error)throw error}
-for(const o of ok.filter(o=>o.id)){const{error}=await sb.from("items").update({category:o.category,unit:o.unit,reorder_level:o.reorder_level,cost:o.cost}).eq("id",o.id);if(error)throw error}
+for(const o of ok.filter(o=>o.id)){const{error}=await sb.from("items").update({category:o.category,unit:o.unit,reorder_level:o.reorder_level,cost:o.cost,kind:o.kind}).eq("id",o.id);if(error)throw error}
 $("#dlg").close();toast("Import done.");load()}catch(e){toast(e.message,1);btn.disabled=false;btn.textContent="Try again"}}
 
 /* SHOPPING LIST */
@@ -122,31 +123,32 @@ return `<h2>Shopping list</h2><p class="noprint">Suggested order = enough to rea
 (n?Object.entries(g).filter(([,l])=>l.length).map(([a,l])=>`<h3>${a}</h3><div class="card">${tbl(["Item","Have","Order"],l.map(i=>`<tr><td>${esc(i.name)}</td><td>${fmt(i.quantity)} ${esc(i.unit)}</td><td><b>${need(i)} ${esc(i.unit)}</b></td></tr>`))}</div>`).join(""):"<div class='card'>Nothing needs reordering.</div>")}
 
 /* HISTORY */
-function mvTable(l,act){return tbl(["When","Item","Change","Reason","Staff","Notes",act?"":""].slice(0,act?7:6),l.map(m=>`<tr class="${m.voided?"v":""}"><td>${when(m.created_at)}</td><td>${esc(m.item_name)}</td><td>${m.type==="in"?"+":m.type==="out"?"−":"±"}${fmt(m.quantity)}</td><td>${esc(m.reason)}</td><td>${esc(m.staff_name)}</td><td>${esc(m.notes)}${m.voided?` <b>VOIDED: ${esc(m.void_reason)}</b>`:""}</td>${act?`<td>${m.voided?"":`<button class="s r" onclick="voidMv('${m.id}')">Void</button>`}</td>`:""}</tr>`))}
+function mvTable(l,act){return tbl(["When","Item","Change","Reason","Staff","Notes",act?"":""].slice(0,act?7:6),l.map(m=>`<tr class="${m.voided?"v":""}"><td>${when(m.created_at)}</td><td>${esc(m.item_name)}</td><td>${m.type==="in"?"+":m.type==="out"?"−":(m.quantity>0?"+":"")}${fmt(m.quantity)}</td><td>${esc(m.reason)}</td><td>${esc(m.staff_name)}</td><td>${esc(m.notes)}${m.voided?` <b>VOIDED: ${esc(m.void_reason)}</b>`:""}</td>${act?`<td>${m.voided?"":`<button class="s r" onclick="voidMv('${m.id}')">Void</button>`}</td>`:""}</tr>`))}
 function histRows(){return D.mv.filter(m=>(!F.hi||m.item_name===F.hi)&&(!F.ht||m.type===F.ht)&&(!F.hr||m.reason===F.hr)&&(!F.hs||m.staff_name.toLowerCase().includes(F.hs.toLowerCase()))&&(!F.hf||m.created_at>=F.hf)&&(!F.ht2||m.created_at<=F.ht2+"T23:59:59"))}
 function hist(){const set=(k)=>`oninput="F.${k}=this.value;render()"`;const names=[...new Set(D.mv.map(m=>m.item_name))].sort();
 return `<h2>History</h2><div class="bar"><div><label>Item</label><select ${set("hi")}><option value="">All</option>${names.map(n=>`<option ${F.hi===n?"selected":""}>${esc(n)}</option>`).join("")}</select></div>
 <div><label>Type</label><select ${set("ht")}><option value="">All</option><option value="in" ${F.ht=="in"?"selected":""}>In</option><option value="out" ${F.ht=="out"?"selected":""}>Out</option><option value="adjust" ${F.ht=="adjust"?"selected":""}>Adjust</option></select></div>
-<div><label>Reason</label><select ${set("hr")}><option value="">All</option>${["Delivery","Returned","Daily Usage","Spoilage","Waste","Stocktake"].map(r=>`<option ${F.hr===r?"selected":""}>${r}</option>`).join("")}</select></div>
+<div><label>Reason</label><select ${set("hr")}><option value="">All</option>${["Delivery","Returned","Opening stock","Production","Daily Usage","Served / Used","Staff meal","Spoilage","Waste","Stocktake"].map(r=>`<option ${F.hr===r?"selected":""}>${r}</option>`).join("")}</select></div>
 <div><label>Staff</label><input ${set("hs")} value="${esc(F.hs||"")}"></div><div><label>From</label><input type="date" ${set("hf")} value="${F.hf||""}"></div><div><label>To</label><input type="date" ${set("ht2")} value="${F.ht2||""}"></div>
 <button class="s" onclick="csv('history',histRows().map(m=>({when:m.created_at,item:m.item_name,type:m.type,quantity:m.quantity,reason:m.reason,staff:m.staff_name,notes:m.notes,expiry:m.expiry,unit_cost:m.unit_cost,voided:m.voided,void_reason:m.void_reason})))">Export CSV</button></div><div class="card">${mvTable(histRows().slice(0,300),true)}</div>`}
 async function voidMv(id){const r=prompt("Reason for voiding? Stock will be reversed.");if(!r)return;const{error}=await sb.rpc("void_movement",{p_id:id,p_reason:r});error?toast(error.message,1):(toast("Voided. Stock corrected."),load())}
 
-/* APPROVALS */
-function appr(){return `<h2>Approvals</h2><h3>Mistake reports from staff</h3><div class="card">${tbl(["When","Entry","Staff note","From",""],D.cor.map(c=>`<tr><td>${when(c.created_at)}</td><td>${c.movements?esc(c.movements.type==="in"?"+":"−")+fmt(c.movements.quantity)+" "+esc(c.movements.item_name):""}</td><td>${esc(c.note)}</td><td>${esc(c.staff_name)}</td><td><button class="s r" onclick="voidMv('${c.movement_id}')">Void entry</button> <button class="s" onclick="rej('corrections','${c.id}','rejected')">Dismiss</button></td></tr>`))}</div>
-<h3>Stocktake counts</h3><div class="card">${tbl(["When","Item","Expected","Counted","Difference","By",""],D.cnt.map(s=>{const d=s.counted-s.expected;return `<tr><td>${when(s.created_at)}</td><td>${esc(s.item_name)}</td><td>${fmt(s.expected)}</td><td>${fmt(s.counted)}</td><td class="${d?"low":""}">${d>0?"+":""}${fmt(d)}</td><td>${esc(s.staff_name)}</td><td><button class="b" onclick="appCnt('${s.id}')">Approve</button> <button class="s" onclick="rej('stocktakes','${s.id}','rejected')">Reject</button></td></tr>`}))}</div>`}
-async function rej(t,id,s){await sb.from(t).update({status:s}).eq("id",id);load()}
-async function appCnt(id){const{error}=await sb.rpc("approve_count",{p_id:id});error?toast(error.message,1):(toast("Stock adjusted."),load())}
+/* PRODUCTION */
+function prod(){const P=D.items.filter(i=>i.kind==="prepared"),L=D.mv.filter(m=>m.kind==="prepared").slice(0,200);
+return `<h2>Production</h2><p class="mute">Prepared food made in-house. Staff record these under Production In / Out. Add or edit prepared items in the Inventory tab (Type: Prepared).</p>
+<h3>Prepared items in stock</h3><div class="card">${tbl(["Item","Area","In stock","Cost per unit","Value"],P.map(i=>`<tr><td>${esc(i.name)}</td><td>${esc(i.area)}</td><td class="${low(i)?"low":""}">${fmt(i.quantity)} ${esc(i.unit)}</td><td>${peso(i.cost)}</td><td>${peso(i.quantity*i.cost)}</td></tr>`))}</div>
+<h3>Production log (latest 200)</h3><div class="card">${mvTable(L,true)}</div>`}
 
 /* MONTHLY REPORT */
 const r2=n=>Math.round(n*100)/100,curYm=()=>{const n=new Date();return F.rm||`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`};
 const grp=(l,k,v)=>{const o={};l.forEach(x=>o[k(x)]=(o[k(x)]||0)+v(x));return Object.entries(o)};
+const USE=["Daily Usage","Served / Used","Staff meal"];
 function monthData(ym){const[y,m]=ym.split("-").map(Number),a=new Date(y,m-1,1),b=new Date(y,m,1);
 const inM=x=>{const d=new Date(x.created_at);return d>=a&&d<b},after=x=>new Date(x.created_at)>=b,live=D.mv.filter(x=>!x.voided),sg=x=>x.type==="out"?-x.quantity:+x.quantity,net=l=>l.reduce((s,x)=>s+sg(x),0),mm=live.filter(inM),cost=x=>x.quantity*x.unit_cost;
 const items=D.items.map(it=>{const mine=live.filter(x=>x.item_id===it.id),mon=mine.filter(inM),close=+it.quantity-net(mine.filter(after)),open=close-net(mon),sum=(t,r)=>mon.filter(x=>x.type===t&&(!r||x.reason===r)).reduce((s,x)=>s+ +x.quantity,0);
-return{Item:it.name,Area:it.area,Unit:it.unit,Opening:r2(open),Received:r2(sum("in")),Used:r2(sum("out","Daily Usage")),Spoilage:r2(sum("out","Spoilage")),Waste:r2(sum("out","Waste")),Adjustments:r2(net(mon.filter(x=>x.type==="adjust"))),Closing:r2(close),"Stock value":r2(close*it.cost)}})
+return{Item:it.name,Area:it.area,Type:it.kind==="prepared"?"Prepared":"Ingredient",Unit:it.unit,Opening:r2(open),Received:r2(sum("in")),Used:r2(mon.filter(x=>x.type==="out"&&USE.includes(x.reason)).reduce((s,x)=>s+ +x.quantity,0)),Spoilage:r2(sum("out","Spoilage")),Waste:r2(sum("out","Waste")),Adjustments:r2(net(mon.filter(x=>x.type==="adjust"))),Closing:r2(close),"Stock value":r2(close*it.cost)}})
 .filter(r=>r.Opening||r.Received||r.Used||r.Spoilage||r.Waste||r.Adjustments||r.Closing).sort((x,y)=>x.Item.localeCompare(y.Item));
-const bad=mm.filter(x=>x.type==="out"&&["Spoilage","Waste"].includes(x.reason)),use=mm.filter(x=>x.type==="out"&&x.reason==="Daily Usage"),dl=mm.filter(x=>x.type==="in"&&x.reason==="Delivery");
+const bad=mm.filter(x=>x.type==="out"&&["Spoilage","Waste"].includes(x.reason)),use=mm.filter(x=>x.type==="out"&&USE.includes(x.reason)),dl=mm.filter(x=>x.type==="in"&&x.reason==="Delivery");
 const money=l=>r2(l.reduce((s,x)=>s+cost(x),0));
 const wasteItem=grp(bad,x=>x.item_name,x=>x.quantity).sort((p,q)=>q[1]-p[1]).map(([k,v])=>({Item:k,Quantity:r2(v),"Cost lost":money(bad.filter(x=>x.item_name===k))}));
 const wastePerson=grp(bad,x=>x.staff_name,()=>1).sort((p,q)=>q[1]-p[1]).map(([k,v])=>({Staff:k,Entries:v,"Cost lost":money(bad.filter(x=>x.staff_name===k))}));
@@ -154,18 +156,19 @@ const mostUsed=grp(use,x=>x.item_name,x=>x.quantity).sort((p,q)=>q[1]-p[1]).slic
 const counts=mm.filter(x=>x.type==="adjust").map(x=>({When:when(x.created_at),Item:x.item_name,Difference:r2(x.quantity),"Counted by":x.staff_name}));
 const voided=D.mv.filter(x=>x.voided&&x.voided_at&&(d=>d>=a&&d<b)(new Date(x.voided_at))).map(x=>({"Voided on":when(x.voided_at),Item:x.item_name,Type:x.type,Quantity:r2(x.quantity),"Entered by":x.staff_name,Reason:x.void_reason}));
 const log=D.mv.filter(inM).map(x=>({When:when(x.created_at),Item:x.item_name,Type:x.type,Quantity:r2(x.quantity),Reason:x.reason,Staff:x.staff_name,Notes:x.notes||"","Unit cost":x.unit_cost,Status:x.voided?"VOIDED: "+x.void_reason:""}));
-const summary=[["Deliveries logged",dl.length,0],["Cost of deliveries",money(dl),1],["Usage entries",use.length,0],["Cost of usage",money(use),1],["Waste & spoilage cost",money(bad),1],["Stocktake adjustments",counts.length,0],["Voided entries",voided.length,0],["Stock value at month end",r2(items.reduce((s,r)=>s+r["Stock value"],0)),1]];
+const summary=[["Deliveries logged",dl.length,0],["Cost of deliveries",money(dl),1],["Production batches logged",mm.filter(x=>x.type==="in"&&x.reason==="Production").length,0],["Usage entries",use.length,0],["Cost of usage",money(use),1],["Waste & spoilage cost",money(bad),1],["Stocktake adjustments",counts.length,0],["Voided entries",voided.length,0],["Stock value at month end",r2(items.reduce((s,r)=>s+r["Stock value"],0)),1]];
 return{items,summary,wasteItem,wastePerson,mostUsed,counts,voided,log}}
 const oT=a=>a.length?tbl(Object.keys(a[0]),a.map(o=>`<tr>${Object.entries(o).map(([k,v])=>`<td>${typeof v==="number"?(/cost|value/i.test(k)?peso(v):fmt(v)):esc(v)}</td>`).join("")}</tr>`)):"<p class='mute'>Nothing this month.</p>";
 function rep(){const ym=curYm(),R=monthData(ym),label=new Date(ym+"-01T00:00:00").toLocaleString([],{month:"long",year:"numeric"});
 return `<h2>Monthly report: ${label}</h2><div class="bar"><div><label style="margin-top:0">Month</label><input type="month" value="${ym}" oninput="if(this.value){F.rm=this.value;render()}"></div><button class="b" onclick="exportMonth()">Download Excel</button><button class="s" onclick="print()">Print / Save as PDF</button></div>
 <div class="grid">${R.summary.map(([k,v,m])=>`<div class="card">${k}<div class="stat" style="font-size:1.4rem">${m?peso(v):fmt(v)}</div></div>`).join("")}</div>
-<h3>Stock movement per item (Bar)</h3><div class="card">${oT(R.items.filter(r=>r.Area==="Bar").map(({Area,...r})=>r))}</div>
-<h3>Stock movement per item (Kitchen)</h3><div class="card">${oT(R.items.filter(r=>r.Area==="Kitchen").map(({Area,...r})=>r))}</div>
+<h3>Stock movement per item (Bar)</h3><div class="card">${oT(R.items.filter(r=>r.Area==="Bar"&&r.Type==="Ingredient").map(({Area,Type,...r})=>r))}</div>
+<h3>Stock movement per item (Kitchen)</h3><div class="card">${oT(R.items.filter(r=>r.Area==="Kitchen"&&r.Type==="Ingredient").map(({Area,Type,...r})=>r))}</div>
+<h3>Production (prepared food)</h3><div class="card">${oT(R.items.filter(r=>r.Type==="Prepared").map(({Type,...r})=>r))}</div>
 <h3>Waste &amp; spoilage by item</h3><div class="card">${oT(R.wasteItem)}</div>
 <h3>Waste &amp; spoilage by person</h3><div class="card">${oT(R.wastePerson)}</div>
 <h3>Most used items</h3><div class="card">${oT(R.mostUsed)}</div>
-<h3>Stocktake differences</h3><div class="card">${oT(R.counts)}</div>
+<h3>Stocktake differences (applied immediately)</h3><div class="card">${oT(R.counts)}</div>
 <h3>Voided entries</h3><div class="card">${oT(R.voided)}</div>
 <h3>Full movement log (${R.log.length})</h3><div class="card">${oT(R.log)}</div>
 <p class="mute">Opening and closing stock are worked out from the movement history. Costs use the price recorded when each entry was made (stock value uses current prices). Only the latest 5,000 movements are loaded.</p>`}
