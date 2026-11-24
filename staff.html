@@ -11,10 +11,10 @@ header img{height:38px;width:38px;border-radius:50%;object-fit:cover;background:
 header b{font-size:1.1rem;display:block;line-height:1.1}header small{color:var(--gold)}
 main{max-width:560px;margin:1rem auto;padding:0 1rem 3rem}
 .tabs{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem}
-.tabs button{font:inherit;font-weight:700;padding:.85rem .4rem;border:2px solid var(--line);background:#fff;border-radius:10px;cursor:pointer;color:var(--ink);border-bottom-width:5px}
+.tabs button{font:inherit;font-weight:700;padding:.8rem .4rem;border:2px solid var(--line);background:#fff;border-radius:10px;cursor:pointer;color:var(--ink);border-bottom-width:5px}
 .tabs button.in{border-bottom-color:var(--in)}.tabs button.out{border-bottom-color:var(--out)}
 .tabs button.on{background:var(--m);color:var(--gold);border-color:var(--m)}
-.sub{display:flex;gap:.5rem;margin-bottom:1rem}.sub button{flex:1;font:inherit;padding:.5rem;border:0;background:none;color:var(--m2);text-decoration:underline;cursor:pointer}
+.sub{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:1rem}.sub button{flex:1 1 auto;font:inherit;padding:.5rem;border:0;background:none;color:var(--m2);text-decoration:underline;cursor:pointer}
 .sub button.on{font-weight:700}
 .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:1rem}
 .banner{margin:-1rem -1rem 1rem;padding:.7rem 1rem;border-radius:10px 10px 0 0;color:#fff;font-weight:700}
@@ -22,16 +22,15 @@ main{max-width:560px;margin:1rem auto;padding:0 1rem 3rem}
 label{display:block;font-weight:600;margin:.8rem 0 .25rem}
 input,select{width:100%;font:inherit;padding:.7rem;border:1px solid #c9b9b3;border-radius:6px;background:#fff}
 button.b{font:inherit;font-weight:700;background:var(--m);color:var(--gold);border:0;border-radius:8px;padding:.85rem;width:100%;cursor:pointer;margin-top:1rem}
-button.s{font:inherit;padding:.3rem .6rem;border:1px solid #c9b9b3;background:#fff;border-radius:6px;cursor:pointer}
+button.s{font:inherit;padding:.4rem .7rem;border:1px solid #c9b9b3;background:#fff;border-radius:6px;cursor:pointer}
 .sug{border:1px solid var(--line);border-radius:8px;margin-top:.3rem;overflow:hidden}.sug:empty{display:none}
-.sug button{display:block;width:100%;text-align:left;font:inherit;padding:.65rem .8rem;border:0;border-bottom:1px solid var(--line);background:#fff;cursor:pointer}
-.sug button:hover{background:#f3e9e4}.sug small{color:#7a6a66}.sug .hint{padding:.5rem .8rem;color:#7a6a66;font-size:.88rem}
-.filt{display:flex;gap:.4rem;margin:.7rem 0}.filt button{flex:1;font:inherit;padding:.5rem;border:1px solid #c9b9b3;background:#fff;border-radius:8px;cursor:pointer}
+.sug>button{display:block;width:100%;text-align:left;font:inherit;padding:.65rem .8rem;border:0;border-bottom:1px solid var(--line);background:#fff;cursor:pointer}
+.sug>button:hover{background:#f3e9e4}.sug small{color:#7a6a66}.sug .hint{padding:.55rem .8rem;color:#7a6a66;font-size:.9rem}
+.filt{display:flex;flex-wrap:wrap;gap:.4rem;margin:.7rem 0}.filt button{flex:1 1 42%;font:inherit;padding:.5rem;border:1px solid #c9b9b3;background:#fff;border-radius:8px;cursor:pointer}
 .filt button.on{background:var(--m);color:var(--gold);border-color:var(--m);font-weight:700}
-.grp{margin:1rem 0 .2rem;font-weight:700;color:var(--m)}.grp small{color:#7a6a66;font-weight:400}.zero{color:var(--red);font-weight:700}
-.filt{flex-wrap:wrap}.filt button{flex:1 1 42%}
-.pick{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}.pick button{font:inherit;text-align:center;padding:1.2rem .5rem;border:2px solid var(--line);background:#fff;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;gap:.2rem}
-.pick b{font-size:1.2rem;color:var(--m)}.pick .w{color:var(--out);font-size:.85rem}.pick button:hover{border-color:var(--m)}
+.pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem}.pick button{font:inherit;text-align:center;padding:1.1rem .4rem;border:2px solid var(--line);background:#fff;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;gap:.2rem}
+.pick b{font-size:1.15rem;color:var(--m)}.pick .w{color:var(--out);font-size:.82rem}.pick button:hover{border-color:var(--m)}
+.grp{margin:1rem 0 .2rem;font-weight:700;color:var(--m)}
 .tag{font-size:.72rem;padding:.1rem .45rem;border-radius:99px;font-weight:700;white-space:nowrap}
 .tag.out{background:#fbeae8;color:var(--red)}.tag.low{background:#fdeede;color:var(--out)}.tag.ok{background:#e4f3ea;color:var(--in)}
 .row{display:flex;justify-content:space-between;gap:.5rem;padding:.6rem 0;border-bottom:1px solid var(--line);align-items:center}
@@ -40,7 +39,8 @@ button.s{font:inherit;padding:.3rem .6rem;border:1px solid #c9b9b3;background:#f
 #lock form{background:#fff;padding:1.5rem;border-radius:12px;width:min(300px,100%);text-align:center}
 #lock img{height:64px;width:64px;border-radius:50%;object-fit:cover}
 #pin{text-align:center;font-size:1.8rem;letter-spacing:.6em;padding-left:.6em}
-#toast{position:fixed;left:50%;bottom:1rem;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.7rem 1rem;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;z-index:10}
+dialog{border:0;border-radius:12px;padding:1.2rem;width:min(440px,92vw)}dialog::backdrop{background:rgba(0,0,0,.45)}
+#toast{position:fixed;left:50%;bottom:1rem;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.7rem 1rem;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;z-index:50}
 #toast.show{opacity:1}#toast.err{background:var(--red)}.hidden{display:none!important}
 :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 </style></head><body>
@@ -51,15 +51,16 @@ button.s{font:inherit;padding:.3rem .6rem;border:1px solid #c9b9b3;background:#f
 <main>
 <div class="tabs" id="tabs">
 <button data-a="Bar" data-t="in" class="in on">Bar · Stock In</button><button data-a="Bar" data-t="out" class="out">Bar · Stock Out</button>
-<button data-a="Kitchen" data-t="in" class="in">Kitchen · Stock In</button><button data-a="Kitchen" data-t="out" class="out">Kitchen · Stock Out</button></div>
-<div class="sub" id="sub"><button data-v="stocks">All stocks</button><button data-v="recent">Recent entries</button><button data-v="count">Count shelf</button></div>
+<button data-a="Kitchen" data-t="in" class="in">Kitchen · Stock In</button><button data-a="Kitchen" data-t="out" class="out">Kitchen · Stock Out</button>
+<button data-a="Production" data-t="in" class="in">Production In</button><button data-a="Production" data-t="out" class="out">Production Out</button></div>
+<div class="sub" id="sub"><button data-v="stocks">All stocks</button><button data-v="recent">Recent entries</button><button data-v="count">Count shelf</button><button data-v="add">Add item</button></div>
 
 <section id="v-form"><form class="card" id="mf" autocomplete="off">
 <div class="banner in" id="banner"></div>
 <label for="q">Item name</label><input id="q" placeholder="Start typing, e.g. egg" required><div class="sug" id="sug"></div>
 <label for="qty">Quantity <span id="unit" class="mute"></span></label><input id="qty" type="number" min="0.01" step="any" inputmode="decimal" required>
 <label for="reason">Reason</label><select id="reason"></select>
-<div id="expw"><label for="exp">Expiry date (if any)</label><input id="exp" type="date"></div>
+<div id="expw"><label for="exp">Expiry / use-by date (if any)</label><input id="exp" type="date"></div>
 <label for="staff">Your name</label><input id="staff" required maxlength="40">
 <label for="notes">Notes (optional)</label><input id="notes" maxlength="200">
 <button class="b">Save</button></form></section>
@@ -74,12 +75,24 @@ button.s{font:inherit;padding:.3rem .6rem;border:1px solid #c9b9b3;background:#f
 <section id="v-recent" class="hidden"><div class="card" id="rl"></div></section>
 
 <section id="v-count" class="hidden"><form class="card" id="cf" autocomplete="off">
-<p class="mute">Count what is on the shelf. Your manager reviews any difference before stock changes.</p>
+<p class="mute">Count what is on the shelf. Saving replaces the current stock with your count, and the difference is recorded under your name.</p>
 <label for="cq">Item name</label><input id="cq" placeholder="Start typing" required><div class="sug" id="csug"></div>
 <label for="cqty">Counted quantity</label><input id="cqty" type="number" min="0" step="any" required>
 <label for="cstaff">Your name</label><input id="cstaff" required maxlength="40">
-<button class="b">Submit count</button></form></section>
-</main><div id="toast"></div>
+<button class="b">Save count</button></form></section>
+</main>
+
+<dialog id="adlg"><form id="af" autocomplete="off"><h2 style="margin-top:0">Add new item</h2>
+<label for="an">Name</label><input id="an" required maxlength="60">
+<label for="ak">Type</label><select id="ak"><option value="ingredient">Ingredient (bought stock)</option><option value="prepared">Prepared food (made in-house)</option></select>
+<label for="aa">Area</label><select id="aa"><option>Bar</option><option>Kitchen</option></select>
+<label for="ac">Category</label><input id="ac" list="cats" required maxlength="40" placeholder="e.g. Milk, Produce, Sauces"><datalist id="cats"></datalist>
+<label for="au">Unit</label><input id="au" required maxlength="12" placeholder="kg, L, pcs, portions">
+<label for="aq">Starting amount (optional)</label><input id="aq" type="number" min="0" step="any" value="0">
+<label for="ar">Reorder level (optional)</label><input id="ar" type="number" min="0" step="any" value="0">
+<label for="as">Your name</label><input id="as" required maxlength="40">
+<div style="display:flex;gap:.5rem;margin-top:1rem"><button class="b" style="margin:0">Add item</button><button type="button" class="s" id="acancel">Cancel</button></div></form></dialog>
+<div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -87,10 +100,11 @@ const SUPABASE_URL="https://nwlgqynzcohwamlfcekk.supabase.co", SUPABASE_KEY="sb_
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY),$=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let PIN=sessionStorage.getItem("pin")||"",items=[],mode={a:"Bar",t:"in"};
-function toast(m,e){const t=$("#toast");t.textContent=m;t.className="show"+(e?" err":"");clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",3500)}
+function toast(m,e){const t=$("#toast");t.textContent=m;t.className="show"+(e?" err":"");clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",4000)}
+const poolFor=a=>items.filter(i=>a==="Production"?i.kind==="prepared":i.area===a&&i.kind!=="prepared");
 
 /* ---- PIN ---- */
-async function enter(p){const{data}=await sb.rpc("check_pin",{p_pin:p});if(!data)return false;PIN=p;sessionStorage.setItem("pin",p);$("#lock").classList.add("hidden");$("#staff").value=$("#cstaff").value=localStorage.getItem("staff")||"";load();return true}
+async function enter(p){const{data}=await sb.rpc("check_pin",{p_pin:p});if(!data)return false;PIN=p;sessionStorage.setItem("pin",p);$("#lock").classList.add("hidden");$("#staff").value=$("#cstaff").value=$("#as").value=localStorage.getItem("staff")||"";await load();return true}
 if(PIN)enter(PIN).then(ok=>{if(!ok)sessionStorage.removeItem("pin")});
 $("#pf").onsubmit=async e=>{e.preventDefault();if(!await enter($("#pin").value)){$("#pe").textContent="Wrong PIN.";$("#pin").value=""}};
 async function load(){const{data,error}=await sb.rpc("staff_items",{p_pin:PIN});if(error)return toast(error.message,1);items=data.map(i=>({...i,n:norm(i.name)}))}
@@ -105,32 +119,38 @@ pool.filter(i=>i.n.includes(n)&&!l.includes(i)).forEach(i=>l.push(i));
 if(!l.length)l=pool.map(i=>({i,d:Math.min(lev(i.n,n),...i.n.split(" ").map(w=>lev(w,n)))})).filter(x=>x.d<=Math.max(1,Math.floor(n.length/4))).sort((a,b)=>a.d-b.d).map(x=>x.i);
 return{list:l,exact:false}}
 
-/* ---- Reusable type-ahead box ---- */
-function picker(inp,box,pool,onPick){let sel=null;const I=$(inp),B=$(box);
-const show=()=>{const{list}=match(I.value,pool());sel=null;B.innerHTML=I.value.trim()?(list.length?list.slice(0,6).map(i=>`<button type="button" data-id="${i.id}">${esc(i.name)} <small>${i.quantity} ${esc(i.unit)} in stock</small></button>`).join(""):`<div class="hint">No match. Check the spelling.</div>`):"";};
+/* ---- Type-ahead box ---- */
+const meta=i=>`<small>${esc(i.area)}${i.kind==="prepared"?" · prepared":""} · ${(+i.quantity).toLocaleString(undefined,{maximumFractionDigits:2})} ${esc(i.unit)}</small>`;
+function picker(inp,box,pool,onPick,canAdd){let sel=null;const I=$(inp),B=$(box);
+const addBtn=v=>canAdd&&v.length>=2?`<div class="hint">Not in the list? <button type="button" class="s" data-add="1">Add “${esc(v)}” as a new item</button></div>`:"";
+const show=()=>{const v=I.value.trim(),{list}=match(v,pool());sel=null;
+B.innerHTML=!v?"":(list.length?list.slice(0,6).map(i=>`<button type="button" data-id="${i.id}">${esc(i.name)} ${meta(i)}</button>`).join(""):`<div class="hint">No match. Check the spelling.</div>`)+addBtn(v)};
 I.oninput=show;
-B.onclick=e=>{const b=e.target.closest("button");if(!b)return;sel=items.find(i=>i.id===b.dataset.id);I.value=sel.name;B.innerHTML="";onPick&&onPick(sel)};
-return{get(){const p=pool(),m=match(I.value,p);
-if(sel&&norm(I.value)===sel.n)return sel;
-if(m.exact||m.list.length===1&&norm(I.value).length>=2&&m.list[0].n.includes(norm(I.value))){sel=m.list[0];I.value=sel.name;B.innerHTML="";onPick&&onPick(sel);return sel}
+B.onclick=e=>{const b=e.target.closest("button");if(!b)return;if(b.dataset.add)return openAdd(I.value.trim(),true);sel=items.find(i=>i.id===b.dataset.id);I.value=sel.name;B.innerHTML="";onPick&&onPick(sel)};
+return{get(){const p=pool(),m=match(I.value,p),n=norm(I.value);
+if(sel&&n===sel.n)return sel;
+if(m.exact||(m.list.length===1&&n.length>=2&&m.list[0].n.includes(n))){sel=m.list[0];I.value=sel.name;B.innerHTML="";onPick&&onPick(sel);return sel}
 const other=!m.list.length&&match(I.value,items).list[0];
-if(other)toast(`"${other.name}" is in ${other.area}. Use the ${other.area} tab.`,1);
-else if(m.list.length)toast("Tap the right item from the list.",1);else toast("Item not found. Ask your manager to add it.",1);
+if(other)toast(`"${other.name}" is under ${other.kind==="prepared"?"Production":other.area}. Use that tab.`,1);
+else if(m.list.length)toast("Tap the right item from the list.",1);else toast("Item not found. Tap “Add as a new item”.",1);
 show();return null},
 clear(){sel=null;I.value="";B.innerHTML=""}}}
-const P1=picker("#q","#sug",()=>items.filter(i=>i.area===mode.a),i=>$("#unit").textContent=`(${i.unit})`);
-const P2=picker("#cq","#csug",()=>items);
+const P1=picker("#q","#sug",()=>poolFor(mode.a),i=>$("#unit").textContent=`(${i.unit})`,true);
+const P2=picker("#cq","#csug",()=>items,null,false);
 
 /* ---- Tabs ---- */
-const R={in:["Delivery","Returned"],out:["Daily Usage","Spoilage","Waste"]};
+const R={in:["Delivery","Returned"],out:["Daily Usage","Spoilage","Waste"],pin:["Production"],pout:["Served / Used","Staff meal","Spoilage","Waste"]};
 function setMode(a,t){mode={a,t};document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.a===a&&b.dataset.t===t));
 document.querySelectorAll("#sub button").forEach(b=>b.classList.remove("on"));show("form");
-$("#banner").className="banner "+t;$("#banner").textContent=`${a} · Stock ${t==="in"?"In":"Out"}`;
-$("#reason").innerHTML=R[t].map(r=>`<option>${r}</option>`).join("");$("#expw").classList.toggle("hidden",t!=="in");P1.clear();$("#unit").textContent=""}
+$("#banner").className="banner "+t;$("#banner").textContent=a==="Production"?`Production · ${t==="in"?"Made (In)":"Used up (Out)"}`:`${a} · Stock ${t==="in"?"In":"Out"}`;
+$("#reason").innerHTML=R[a==="Production"?"p"+t:t].map(r=>`<option>${r}</option>`).join("");$("#expw").classList.toggle("hidden",t!=="in");P1.clear();$("#unit").textContent=""}
 function show(v){["form","stocks","recent","count"].forEach(x=>$("#v-"+x).classList.toggle("hidden",x!==v))}
 $("#tabs").onclick=e=>{const b=e.target.closest("button");if(b)setMode(b.dataset.a,b.dataset.t)};
-$("#sub").onclick=e=>{const b=e.target.closest("button");if(!b)return;document.querySelectorAll("#tabs button").forEach(x=>x.classList.remove("on"));
-document.querySelectorAll("#sub button").forEach(x=>x.classList.toggle("on",x===b));show(b.dataset.v);if(b.dataset.v==="recent")recent();if(b.dataset.v==="stocks")openStocks()};
+$("#sub").onclick=e=>{const b=e.target.closest("button");if(!b)return;
+if(b.dataset.v==="add")return openAdd("",false);
+document.querySelectorAll("#tabs button").forEach(x=>x.classList.remove("on"));
+document.querySelectorAll("#sub button").forEach(x=>x.classList.toggle("on",x===b));show(b.dataset.v);
+if(b.dataset.v==="recent")recent();if(b.dataset.v==="stocks")openStocks()};
 setMode("Bar","in");
 
 /* ---- Save movement ---- */
@@ -139,26 +159,35 @@ const{error}=await sb.rpc("record_movement",{p_pin:PIN,p_item_id:it.id,p_type:mo
 if(error)return toast(error.message,1);localStorage.setItem("staff",s);toast(`Saved: ${mode.t==="in"?"+":"−"}${$("#qty").value} ${it.name}`);
 P1.clear();$("#qty").value=$("#notes").value=$("#exp").value="";$("#unit").textContent="";load();$("#q").focus()};
 
-/* ---- My entries / mistakes ---- */
-async function recent(){const{data,error}=await sb.rpc("staff_recent",{p_pin:PIN});if(error)return toast(error.message,1);
-$("#rl").innerHTML=data.length?data.map(m=>`<div class="row ${m.voided?"v":""}"><div><b>${m.type==="in"?"+":m.type==="out"?"−":"±"}${m.quantity}</b> ${esc(m.item_name)}<div class="mute">${esc(m.reason)} · ${esc(m.staff_name)} · ${new Date(m.created_at).toLocaleString()}${m.voided?" · VOIDED":""}</div></div>${m.voided?"":`<button class="s" data-c="${m.id}">Report mistake</button>`}</div>`).join(""):"<p>No entries yet.</p>"}
-$("#rl").onclick=async e=>{const id=e.target.dataset.c;if(!id)return;const note=prompt("What is wrong with this entry?");if(!note)return;
-const{error}=await sb.rpc("request_correction",{p_pin:PIN,p_movement:id,p_note:note,p_staff:$("#staff").value||"Staff"});toast(error?error.message:"Sent to your manager.",!!error)};
+/* ---- Add new item ---- */
+let fromForm=false;
+function openAdd(name,ff){fromForm=ff;$("#an").value=name;$("#ak").value=mode.a==="Production"?"prepared":"ingredient";$("#aa").value=mode.a==="Bar"?"Bar":"Kitchen";
+$("#ac").value="";$("#au").value="";$("#aq").value=0;$("#ar").value=0;$("#as").value=localStorage.getItem("staff")||"";
+$("#cats").innerHTML=[...new Set(items.map(i=>i.category))].sort().map(c=>`<option value="${esc(c)}">`).join("");$("#adlg").showModal()}
+$("#acancel").onclick=()=>$("#adlg").close();
+$("#af").onsubmit=async e=>{e.preventDefault();const name=$("#an").value.trim(),s=$("#as").value.trim();
+const{error}=await sb.rpc("add_item",{p_pin:PIN,p_name:name,p_area:$("#aa").value,p_category:$("#ac").value.trim(),p_unit:$("#au").value.trim(),p_kind:$("#ak").value,p_qty:+$("#aq").value||0,p_reorder:+$("#ar").value||0,p_staff:s});
+if(error)return toast(error.message,1);localStorage.setItem("staff",s);$("#adlg").close();toast(`Added: ${name}`);await load();
+if(fromForm){$("#q").value=name;$("#q").dispatchEvent(new Event("input"))}};
 
-/* ---- All stocks: Bar / Kitchen, then filters ---- */
+/* ---- Recent entries ---- */
+async function recent(){const{data,error}=await sb.rpc("staff_recent",{p_pin:PIN});if(error)return toast(error.message,1);
+$("#rl").innerHTML=data.length?data.map(m=>`<div class="row ${m.voided?"v":""}"><div><b>${m.type==="in"?"+":m.type==="out"?"−":(m.quantity>0?"+":"")}${m.quantity}</b> ${esc(m.item_name)}<div class="mute">${esc(m.reason)} · ${esc(m.staff_name)} · ${new Date(m.created_at).toLocaleString()}${m.voided?" · VOIDED":""}</div></div></div>`).join("")+'<p class="mute">Made a mistake? Tell your manager. Only the admin can void an entry.</p>':"<p>No entries yet.</p>"}
+
+/* ---- All stocks: Bar / Kitchen / Production, then filters ---- */
 let SA="",SF="all";
 const st=i=>+i.quantity<=0?"out":(+i.reorder_level>0&&+i.quantity<=+i.reorder_level)?"low":"ok";
 const TAG={out:["Out of stock","out"],low:["Running low","low"],ok:["Still in stock","ok"]};
 const FL=[["all","All stocks"],["low","Running low"],["out","Out of stock"],["ok","Still in stock"]];
 async function openStocks(){SA="";SF="all";$("#sq").value="";await load();stocks()}
 function stocks(){$("#s1").classList.toggle("hidden",!!SA);$("#s2").classList.toggle("hidden",!SA);
-if(!SA){$("#s1").innerHTML='<div class="pick">'+["Bar","Kitchen"].map(a=>{const l=items.filter(i=>i.area===a),lo=l.filter(i=>st(i)==="low").length,ou=l.filter(i=>st(i)==="out").length;
-return `<button data-a="${a}"><b>${a}</b><span>${l.length} items</span><span class="w">${lo} running low · ${ou} out</span></button>`}).join("")+'</div>';return}
-const pool=items.filter(i=>i.area===SA),cnt=k=>k==="all"?pool.length:pool.filter(i=>st(i)===k).length;
+if(!SA){$("#s1").innerHTML='<div class="pick">'+["Bar","Kitchen","Production"].map(a=>{const l=poolFor(a),lo=l.filter(i=>st(i)==="low").length,ou=l.filter(i=>st(i)==="out").length;
+return `<button data-a="${a}"><b>${a}</b><span>${l.length} items</span><span class="w">${lo} low · ${ou} out</span></button>`}).join("")+'</div>';return}
+const pool=poolFor(SA),cnt=k=>k==="all"?pool.length:pool.filter(i=>st(i)===k).length,gk=i=>SA==="Production"?i.area+" · "+i.category:i.category;
 $("#stitle").textContent=`${SA} · ${FL.find(f=>f[0]===SF)[1]}`;
 $("#sf").innerHTML=FL.map(([k,n])=>`<button data-f="${k}" class="${k===SF?"on":""}">${n} (${cnt(k)})</button>`).join("");
 const q=norm($("#sq").value),l=pool.filter(i=>(SF==="all"||st(i)===SF)&&(!q||i.n.includes(q)));let h="";
-[...new Set(l.map(i=>i.category))].sort().forEach(c=>{h+=`<div class="grp">${esc(c)}</div>`+l.filter(i=>i.category===c).map(i=>{const t=TAG[st(i)];
+[...new Set(l.map(gk))].sort().forEach(c=>{h+=`<div class="grp">${esc(c)}</div>`+l.filter(i=>gk(i)===c).map(i=>{const t=TAG[st(i)];
 return `<div class="row"><span>${esc(i.name)} <span class="tag ${t[1]}">${t[0]}</span></span><b>${(+i.quantity).toLocaleString(undefined,{maximumFractionDigits:2})} ${esc(i.unit)}</b></div>`}).join("")});
 $("#sl").innerHTML=h||"<p class='mute'>Nothing here.</p>"}
 $("#s1").onclick=e=>{const b=e.target.closest("button");if(!b)return;SA=b.dataset.a;SF="all";$("#sq").value="";stocks()};
@@ -166,8 +195,10 @@ $("#sback").onclick=()=>{SA="";stocks()};
 $("#sf").onclick=e=>{const b=e.target.closest("button");if(!b)return;SF=b.dataset.f;stocks()};
 $("#sq").oninput=stocks;
 
-/* ---- Stocktake count ---- */
-$("#cf").onsubmit=async e=>{e.preventDefault();const it=P2.get();if(!it)return;const s=$("#cstaff").value.trim();
-const{error}=await sb.rpc("submit_count",{p_pin:PIN,p_item:it.id,p_counted:+$("#cqty").value,p_staff:s});
-if(error)return toast(error.message,1);localStorage.setItem("staff",s);P2.clear();$("#cqty").value="";toast("Count sent for approval.")};
+/* ---- Stocktake count (applies immediately) ---- */
+$("#cf").onsubmit=async e=>{e.preventDefault();const it=P2.get();if(!it)return;const n=+$("#cqty").value,s=$("#cstaff").value.trim();
+if(!confirm(`Set ${it.name} to ${n} ${it.unit}? The system currently shows ${it.quantity}.`))return;
+const{error}=await sb.rpc("submit_count",{p_pin:PIN,p_item:it.id,p_counted:n,p_staff:s});
+if(error)return toast(error.message,1);localStorage.setItem("staff",s);P2.clear();$("#cqty").value="";
+toast(n===+it.quantity?"Count matches. Nothing changed.":`Stock updated to ${n} ${it.unit}.`);load()};
 </script></body></html>
